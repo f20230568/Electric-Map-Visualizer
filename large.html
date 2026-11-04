@@ -205,7 +205,19 @@
   }
   #miniWrap.hidden { display: none; }
   #miniCanvas { display: block; width: 220px; height: 150px; }
-  #miniWrap .cap { font: 600 10.5px var(--mono); color: var(--faint); margin: 0 2px 4px; display: flex; justify-content: space-between; }
+  #miniWrap .cap { font: 600 10.5px var(--mono); color: var(--faint); margin: 0 2px 4px; display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: default; }
+  #miniWrap .cap .grow { flex: 1; }
+  #miniMinBtn {
+    width: 20px; height: 18px; padding: 0; border-radius: 5px; cursor: pointer; flex: none;
+    border: 1px solid var(--line2); background: var(--panel2); color: var(--muted);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  #miniMinBtn:hover { color: var(--copper2); border-color: rgba(240, 165, 74, 0.5); }
+  #miniMinBtn svg { width: 11px; height: 11px; transition: transform 0.15s; }
+  #miniWrap.min { padding: 5px 6px; }
+  #miniWrap.min .cap { margin: 0 2px; }
+  #miniWrap.min #miniCanvas { display: none; }
+  #miniWrap.min #miniMinBtn svg { transform: rotate(180deg); }
   #boardResizeHandle {
     height: 14px; display: flex; align-items: center; justify-content: center; cursor: ns-resize; user-select: none; touch-action: none;
     border-top: 1px solid var(--line); background: var(--panel); border-radius: 0 0 var(--radius) var(--radius);
@@ -280,7 +292,7 @@
   </div>
   <div class="spacer"></div>
   <nav class="links">
-    <a href="index.html" title="Back to the single-board Electric Board Map">← Single board</a>
+    <a href="index.html" title="Back to the single-board Electric Board Map">Single board</a>
   </nav>
   <span class="chip"><span class="dot" style="border-color:#1f7fd1"></span>Male: diagonal arrival</span>
   <span class="chip"><span class="dot" style="border-color:#e0186a"></span>Female: horizontal / vertical</span>
@@ -411,8 +423,6 @@
           <button id="randomizeGendersBtn" class="btn teal">Randomize genders</button>
         </div>
         <div class="row">
-          <button id="saveViewBtn" class="btn violet sm">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Save view JPG</button>
           <span class="inline" style="flex:1">
             <input type="number" id="saveBoardNo" min="1" value="1" title="Board number" style="width:72px; flex:none">
             <button id="saveBoardBtn" class="btn violet sm">Save board JPG</button>
@@ -452,7 +462,11 @@
       <div id="boardWindow">
         <canvas id="boardCanvas"></canvas>
         <div id="miniWrap">
-          <div class="cap"><span>OVERVIEW</span><span id="miniInfo"></span></div>
+          <div class="cap"><span>OVERVIEW</span><span class="grow"></span><span id="miniInfo"></span>
+            <button id="miniMinBtn" title="Minimize the overview" aria-label="Minimize the overview">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5l3 3 3-3"/></svg>
+            </button>
+          </div>
           <canvas id="miniCanvas"></canvas>
         </div>
       </div>
@@ -2483,7 +2497,7 @@ function lfProgress() {
   const k = LF.boards.length;
   $("progBar").style.width = (k ? (100 * LF.done / k) : 0) + "%";
   $("progText").textContent = `${lfFmt(LF.done)} / ${lfFmt(k)} boards`;
-  if (LF.done < k && k) {
+  if (LF.done < k && k && !LF.exporting) {
     const el = (performance.now() - LF.t0) / 1000;
     lfSetStatus(`Routing boards in the background: ${lfFmt(LF.done)} of ${lfFmt(k)} done (${lfFmt(LF.agg.V)} vertices) · ` +
       `${LF.local ? "on the page" : LF.pool.length + " worker thread" + (LF.pool.length === 1 ? "" : "s")} · ${el.toFixed(1)} s. ` +
@@ -2492,6 +2506,7 @@ function lfProgress() {
 }
 
 function lfFinished() {
+  if (LF.exporting) { setTimeout(lfFinished, 500); return; }
   const a = LF.agg, k = LF.boards.length;
   const problems = a.nVI + a.nTI + a.nGI + a.errors.length;
   const wall = (performance.now() - LF.t0) / 1000;
@@ -2898,7 +2913,7 @@ function lfDrawBoardContent(ctx, B, sx, sy, ps, dpr, cull, hov) {
     for (const i of hov.pads) { ctx.moveTo(r.x[i] + R + 0.04, r.y[i]); ctx.arc(r.x[i], r.y[i], R + 0.04, 0, Math.PI * 2); }
     ctx.stroke();
   }
-  if (LF.focus && LF.focus.b === B.id) {
+  if (LF.focus && LF.focus.b === B.id && !LF.exporting) {
     const i = LF.focus.l;
     ctx.strokeStyle = "#ffe11a"; ctx.lineWidth = Math.max(0.12, 2 / ps);
     ctx.beginPath(); ctx.arc(r.x[i], r.y[i], R + 0.22, 0, Math.PI * 2); ctx.stroke();
@@ -2940,12 +2955,24 @@ function lfDraw() {
     return;
   }
   if (LF.gridDirty) lfRecomputeGrid(true);
-  const s = LF.view.s, vx = LF.view.x, vy = LF.view.y, G = LF.gap, p = LF.S.pitch;
+  const thumbsLeft = lfDrawScene(ctx, W, H, LF.view.s, LF.view.x, LF.view.y, dpr, false);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (thumbsLeft) lfRequestDraw();
+  lfDrawMini();
+}
+
+// Draws the boards that fall inside a W x H (CSS px) window whose top-left corner is the world point (vx, vy) at
+// scale s. Used for the screen (exporting = false); exporting = true draws without hover or search
+// highlight and makes every far-away board picture at once.
+// Returns true if some far-away board pictures still have to be made (screen only).
+function lfDrawScene(ctx, W, H, s, vx, vy, dpr, exporting) {
+  const G = LF.gap, p = LF.S.pitch;
   const ps = p * s;
+  const hover = exporting ? null : LF.hover;
   const th = LF_THEMES[LF.S.theme];
   const c0 = lfIndexAt(LF.colX, LF.cols, vx - G), c1 = lfIndexAt(LF.colX, LF.cols, vx + W / s);
   const r0 = lfIndexAt(LF.rowY, LF.rows, vy - G), r1 = lfIndexAt(LF.rowY, LF.rows, vy + H / s);
-  const thumbBudget = performance.now() + 30;
+  const thumbBudget = exporting ? Infinity : performance.now() + 30;
   let thumbsLeft = false;
   const fsLabel = Math.min(15, G * s * 0.3);
 
@@ -2964,7 +2991,7 @@ function lfDraw() {
       lfRoundRect(ctx, sx - pad, sy - pad, sw + 2 * pad, sh + 2 * pad, Math.min(10, pad * 1.4));
       ctx.fill();
       ctx.lineWidth = lw;
-      const hovB = LF.hover && LF.hover.b === i;
+      const hovB = hover && hover.b === i;
       if (B.state === 2) {
         ctx.setLineDash([]);
         ctx.strokeStyle = B.issues ? "#ff6b6b" : (hovB ? "#ffd166" : "#f0a54a");
@@ -3027,17 +3054,15 @@ function lfDraw() {
         continue;
       }
       const cull = { x0: (vx - R.x) / p - 1, x1: (vx + W / s - R.x) / p + 1, y0: (vy - R.y) / p - 1, y1: (vy + H / s - R.y) / p + 1 };
-      lfDrawBoardContent(ctx, B, sx, sy, ps, dpr, cull, LF.hover);
+      lfDrawBoardContent(ctx, B, sx, sy, ps, dpr, cull, hover);
     }
   }
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  if (thumbsLeft) lfRequestDraw();
-  lfDrawMini();
+  return thumbsLeft;
 }
 
 function lfDrawMini() {
   const wrap = $("miniWrap"), mc = $("miniCanvas");
-  if (wrap.classList.contains("hidden")) return;
+  if (wrap.classList.contains("hidden") || wrap.classList.contains("min")) return;
   const ctx = mc.getContext("2d"), dpr = window.devicePixelRatio || 1;
   const W = mc.clientWidth, H = mc.clientHeight;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -3272,19 +3297,6 @@ function lfDownloadCanvas(c, name) {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
-function lfSaveView() {
-  if (!LF.boards.length) { alert("Nothing to save yet."); return; }
-  lfDraw();
-  const cv = $("boardCanvas");
-  const c = document.createElement("canvas");
-  c.width = cv.width; c.height = cv.height;
-  const ctx = c.getContext("2d");
-  ctx.fillStyle = "#0a0f1d";
-  ctx.fillRect(0, 0, c.width, c.height);
-  ctx.drawImage(cv, 0, 0);
-  lfDownloadCanvas(c, `electric_map_view_${Date.now()}.jpg`);
-}
-
 function lfSaveBoard() {
   const i = Math.round(lfNum("saveBoardNo", 1, 1, Math.max(1, LF.boards.length))) - 1;
   const B = LF.boards[i];
@@ -3347,7 +3359,6 @@ function lfInit() {
   $("clearBtn").onclick = () => { LF.G = null; $("listInput").value = ""; $("rootNode").value = ""; lfStart("Graph cleared."); };
   $("runLayoutBtn").onclick = () => { if (LF.G) lfStart("Layout recomputed with the current settings."); };
   $("randomizeGendersBtn").onclick = lfRandomizeGenders;
-  $("saveViewBtn").onclick = lfSaveView;
   $("saveBoardBtn").onclick = lfSaveBoard;
 
   // display-only settings
@@ -3476,6 +3487,16 @@ function lfInit() {
   mc.addEventListener("pointermove", e => { if (miniDrag) miniJump(e); });
   mc.addEventListener("pointerup", e => { miniDrag = false; if (mc.hasPointerCapture(e.pointerId)) mc.releasePointerCapture(e.pointerId); lfPump(); });
   $("miniWrap").addEventListener("wheel", e => e.stopPropagation());
+  // minimize / restore the overview (only its caption bar stays visible)
+  $("miniMinBtn").onclick = e => {
+    e.stopPropagation();
+    const wrap = $("miniWrap");
+    const min = !wrap.classList.contains("min");
+    wrap.classList.toggle("min", min);
+    $("miniMinBtn").title = min ? "Show the overview" : "Minimize the overview";
+    $("miniMinBtn").setAttribute("aria-label", $("miniMinBtn").title);
+    if (!min) lfResizeCanvas();
+  };
 
   // resize handle and window size
   const handle = $("boardResizeHandle");
