@@ -1,0 +1,3504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electric Board Map · Large Forests</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg2: #0f172a;
+    --panel: #141d33;
+    --panel2: #1a2540;
+    --line: #263354;
+    --line2: #31416a;
+    --text: #e6ecf8;
+    --muted: #93a1c1;
+    --faint: #66759a;
+    --copper: #f0a54a;
+    --copper2: #ffbf6b;
+    --teal: #2dd4bf;
+    --blue: #4aa3ff;
+    --pink: #ff4f9a;
+    --violet: #a78bfa;
+    --red: #ff6b6b;
+    --amber: #fbbf24;
+    --green: #34d399;
+    --radius: 12px;
+    --mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    --sans: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--sans);
+    color: var(--text);
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(74, 163, 255, 0.12), transparent 60%),
+      radial-gradient(900px 500px at -10% 10%, rgba(240, 165, 74, 0.08), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(20, 29, 51, 0.9), rgba(11, 16, 32, 0.6));
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(8px);
+  }
+  .logo { width: 38px; height: 38px; flex: none; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: 0.3px; font-weight: 700; }
+  header .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  header .spacer { flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--line);
+    color: var(--muted); font-size: 12px; white-space: nowrap;
+  }
+  nav.links { display: flex; gap: 8px; margin-right: 6px; }
+  nav.links a {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
+    color: var(--copper2); text-decoration: none; font-size: 12px; font-weight: 600; white-space: nowrap;
+    border: 1px solid rgba(240, 165, 74, 0.4); background: rgba(240, 165, 74, 0.08); transition: background 0.15s;
+  }
+  nav.links a:hover { background: rgba(240, 165, 74, 0.18); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #d9dde0; border: 2.5px solid; }
+  .bframe { width: 13px; height: 10px; border-radius: 2px; display: inline-block; border: 2px solid var(--copper); background: #1b4f97; }
+  @media (max-width: 1250px) { header .chip { display: none; } }
+
+  /* ---------- layout ---------- */
+  .app { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 22px; padding: 22px 28px 40px; }
+  @media (max-width: 1100px) { .app { grid-template-columns: 1fr; } }
+  aside { display: flex; flex-direction: column; gap: 16px; }
+  main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel), rgba(20, 29, 51, 0.85));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  }
+  .card > summary, .card > .head {
+    list-style: none; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; font-weight: 650; font-size: 13px; letter-spacing: 0.6px; text-transform: uppercase; color: #cdd6ea;
+  }
+  .card > .head { cursor: default; }
+  .card > summary::-webkit-details-marker { display: none; }
+  .card > summary::after {
+    content: ""; margin-left: auto; width: 8px; height: 8px;
+    border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+    transform: rotate(45deg); transition: transform 0.2s ease; margin-top: -4px;
+  }
+  .card[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+  .card .ico { width: 18px; height: 18px; color: var(--copper); flex: none; }
+  .body { padding: 0 16px 16px; }
+  .hint { color: var(--faint); font-size: 12px; margin: 6px 0 10px; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--panel2); padding: 1px 5px; border-radius: 5px; color: var(--copper2); }
+
+  /* ---------- form controls ---------- */
+  .seg { display: grid; grid-template-columns: repeat(2, 1fr); background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg button { background: transparent; border: 0; color: var(--muted); padding: 7px 4px; border-radius: 7px; font: 600 12.5px var(--sans); cursor: pointer; transition: all 0.15s; }
+  .seg button.on { background: var(--panel2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line2); }
+  .seg button:hover:not(.on) { color: var(--text); }
+
+  textarea, input[type=number], input[type=text], select {
+    background: var(--bg2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px;
+    font: 13px var(--sans); padding: 7px 9px; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  textarea { width: 100%; resize: vertical; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; min-height: 120px; margin-top: 10px; }
+  textarea:focus, input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(74, 163, 255, 0.18); }
+  select { cursor: pointer; }
+  input[type=file] { display: none; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field > span { color: var(--muted); font-size: 11.5px; letter-spacing: 0.3px; }
+  .field input, .field select { width: 100%; }
+  .field.full { grid-column: 1 / -1; }
+
+  .toggle { display: flex; align-items: center; gap: 10px; color: var(--text); font-size: 13px; cursor: pointer; padding: 4px 0; }
+  .toggle input { appearance: none; width: 34px; height: 19px; border-radius: 999px; background: var(--line2); position: relative; cursor: pointer; flex: none; transition: background 0.2s; margin: 0; }
+  .toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #dfe6f5; transition: transform 0.2s; }
+  .toggle input:checked { background: var(--teal); }
+  .toggle input:checked::after { transform: translateX(15px); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    border: 1px solid var(--line2); background: var(--panel2); color: var(--text);
+    padding: 8px 13px; border-radius: 9px; font: 600 13px var(--sans); cursor: pointer;
+    transition: transform 0.08s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #22305a; border-color: #3d5186; }
+  .btn:active { transform: translateY(1px); }
+  .btn svg { width: 15px; height: 15px; }
+  .btn.primary { background: linear-gradient(180deg, var(--copper2), var(--copper)); color: #2a1703; border-color: #c9832f; box-shadow: 0 6px 18px rgba(240, 165, 74, 0.25); }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.teal { background: rgba(45, 212, 191, 0.12); border-color: rgba(45, 212, 191, 0.45); color: #9ff3e6; }
+  .btn.teal:hover { background: rgba(45, 212, 191, 0.2); }
+  .btn.violet { background: rgba(167, 139, 250, 0.12); border-color: rgba(167, 139, 250, 0.45); color: #d7cbff; }
+  .btn.violet:hover { background: rgba(167, 139, 250, 0.2); }
+  .btn.danger { background: rgba(255, 107, 107, 0.1); border-color: rgba(255, 107, 107, 0.4); color: #ffc2c2; }
+  .btn.danger:hover { background: rgba(255, 107, 107, 0.18); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 6px 10px; font-size: 12px; }
+  .btn.on { background: rgba(240, 165, 74, 0.16); border-color: rgba(240, 165, 74, 0.5); color: var(--copper2); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .sep { height: 1px; background: var(--line); margin: 14px 0; }
+  .inline { display: flex; gap: 8px; align-items: center; }
+  .inline input { flex: 1; min-width: 0; }
+
+  /* ---------- status ---------- */
+  #status {
+    margin: 0; padding: 11px 14px 11px 40px; border-radius: 10px; position: relative;
+    background: rgba(74, 163, 255, 0.08); border: 1px solid rgba(74, 163, 255, 0.25); color: #cfe3ff;
+    font-size: 13px; min-height: 42px;
+  }
+  #status::before {
+    content: ""; position: absolute; left: 15px; top: 15px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--blue); box-shadow: 0 0 0 4px rgba(74, 163, 255, 0.2);
+  }
+  #status.bad { background: rgba(255, 107, 107, 0.08); border-color: rgba(255, 107, 107, 0.3); color: #ffd3d3; }
+  #status.bad::before { background: var(--red); box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.2); }
+  #status.good { background: rgba(52, 211, 153, 0.08); border-color: rgba(52, 211, 153, 0.3); color: #c9f7e4; }
+  #status.good::before { background: var(--green); box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.2); }
+  #status.busy::before { animation: pulse 0.9s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform: scale(0.6); opacity: 0.5; } }
+
+  /* ---------- board window ---------- */
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .zoomgrp { display: inline-flex; align-items: center; background: var(--bg2); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .zoomgrp button { background: transparent; border: 0; color: var(--text); width: 32px; height: 32px; cursor: pointer; font: 700 16px var(--sans); }
+  .zoomgrp button:hover { background: var(--panel2); }
+  #zoomLevel { min-width: 62px; text-align: center; font: 600 12.5px var(--mono); color: var(--copper2); border-left: 1px solid var(--line); border-right: 1px solid var(--line); line-height: 32px; }
+  .toolbar .nav { display: inline-flex; gap: 6px; align-items: center; }
+  .toolbar .nav input { width: 86px; padding: 6px 8px; font-size: 12.5px; }
+  .progress { flex: 1; min-width: 140px; display: flex; align-items: center; gap: 10px; }
+  .progress .bar { flex: 1; height: 6px; border-radius: 6px; background: var(--bg2); border: 1px solid var(--line); overflow: hidden; }
+  .progress .bar > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--teal), var(--copper)); transition: width 0.2s; }
+  .progress span { font: 600 12px var(--mono); color: var(--muted); white-space: nowrap; }
+  .toolbar2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--line); color: var(--faint); font-size: 12px; }
+
+  #boardWindow {
+    position: relative; width: 100%; height: 600px; overflow: hidden;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(147, 161, 193, 0.10) 1px, transparent 1.5px) 0 0 / 16px 16px,
+      #0a0f1d;
+    touch-action: none; cursor: grab;
+  }
+  #boardWindow.dragging { cursor: grabbing; }
+  #boardCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #miniWrap {
+    position: absolute; right: 12px; bottom: 12px; z-index: 3;
+    background: rgba(11, 16, 32, 0.88); border: 1px solid var(--line2); border-radius: 10px; padding: 6px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5); cursor: crosshair;
+  }
+  #miniWrap.hidden { display: none; }
+  #miniCanvas { display: block; width: 220px; height: 150px; }
+  #miniWrap .cap { font: 600 10.5px var(--mono); color: var(--faint); margin: 0 2px 4px; display: flex; justify-content: space-between; }
+  #boardResizeHandle {
+    height: 14px; display: flex; align-items: center; justify-content: center; cursor: ns-resize; user-select: none; touch-action: none;
+    border-top: 1px solid var(--line); background: var(--panel); border-radius: 0 0 var(--radius) var(--radius);
+  }
+  #boardResizeHandle::before { content: ""; width: 46px; height: 4px; border-radius: 4px; background: var(--line2); transition: background 0.15s; }
+  #boardResizeHandle:hover::before { background: var(--copper); }
+
+  #tip {
+    position: fixed; z-index: 50; pointer-events: none; opacity: 0; transform: translateY(4px);
+    transition: opacity 0.12s, transform 0.12s;
+    background: rgba(15, 23, 42, 0.96); border: 1px solid var(--line2); border-radius: 10px;
+    padding: 9px 11px; font-size: 12.5px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45); min-width: 150px; max-width: 320px;
+  }
+  #tip.on { opacity: 1; transform: none; }
+  #tip b { font-size: 14px; }
+  #tip .k { color: var(--muted); }
+
+  /* ---------- stats ---------- */
+  #statsBox { padding: 4px 16px 16px; }
+  table.stats { border-collapse: separate; border-spacing: 8px; margin: -8px; width: calc(100% + 16px); table-layout: fixed; }
+  table.stats td { padding: 0; }
+  table.stats td:nth-child(odd) { color: var(--muted); font-size: 12px; padding-left: 12px; border-left: 2px solid var(--line2); }
+  table.stats td:nth-child(even) { font: 600 14px var(--mono); color: var(--text); }
+  table.stats td:empty { border: 0; }
+  #statsBox em { color: var(--faint); }
+
+  /* ---------- reports ---------- */
+  .reports { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 1300px) { .reports { grid-template-columns: 1fr; } }
+  .report { padding: 14px 16px; border-left: 3px solid; }
+  .report h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.3px; display: flex; align-items: center; gap: 8px; }
+  .report h3 .n { margin-left: auto; font: 600 11.5px var(--mono); padding: 2px 8px; border-radius: 999px; background: var(--panel2); color: var(--muted); }
+  .report ul { margin: 0; padding-left: 18px; font-size: 12.5px; color: #c4cde2; max-height: 200px; overflow: auto; }
+  .report li { margin: 3px 0; }
+  .report li.ok { list-style: none; margin-left: -18px; color: var(--green); font-weight: 600; }
+  .report li.ok::before { content: "✓  "; }
+  .report.r1 { border-left-color: var(--red); } .report.r1 h3 { color: #ffb3b3; }
+  .report.r2 { border-left-color: var(--amber); } .report.r2 h3 { color: #ffe08a; }
+  .report.r3 { border-left-color: var(--violet); } .report.r3 h3 { color: #d7cbff; }
+
+  /* ---------- algorithm ---------- */
+  #algoInfo .body { color: #c4cde2; font-size: 13px; }
+  #algoInfo ol { padding-left: 20px; margin: 4px 0 8px; }
+  #algoInfo li { margin-bottom: 8px; }
+  #algoInfo strong { color: var(--text); }
+  .formula-box {
+    background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--copper);
+    border-radius: 8px; padding: 8px 11px; margin: 7px 0; font: 12px/1.55 var(--mono); color: #ffd7a3;
+  }
+  .note { color: var(--faint); font-size: 12px; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
+    <rect x="1" y="1" width="38" height="38" rx="9" fill="#0f172a" stroke="#f0a54a" stroke-width="1.5"/>
+    <rect x="5" y="5" width="13" height="13" rx="2.5" fill="#1b4f97" stroke="#f0a54a" stroke-width="1.2"/>
+    <rect x="22" y="5" width="13" height="13" rx="2.5" fill="#1b4f97" stroke="#f0a54a" stroke-width="1.2"/>
+    <rect x="5" y="22" width="13" height="13" rx="2.5" fill="#1b4f97" stroke="#f0a54a" stroke-width="1.2"/>
+    <rect x="22" y="22" width="13" height="13" rx="2.5" fill="#1b4f97" stroke="#f0a54a" stroke-width="1.2"/>
+    <g fill="none" stroke="#86c3ff" stroke-width="1.6" stroke-linecap="round"><path d="M8 9h4l3 3"/><path d="M25 9h3l3 3"/><path d="M8 26h4l3 3"/><path d="M25 26h3l3 3"/></g>
+  </svg>
+  <div>
+    <h1>Electric Board Map · Large Forests</h1>
+    <div class="sub">Up to 1,000,000 vertices: the forest is split into balanced sub-forests, each routed on its own board, boards placed in a grid</div>
+  </div>
+  <div class="spacer"></div>
+  <nav class="links">
+    <a href="index.html" title="Back to the single-board Electric Board Map">← Single board</a>
+  </nav>
+  <span class="chip"><span class="dot" style="border-color:#1f7fd1"></span>Male: diagonal arrival</span>
+  <span class="chip"><span class="dot" style="border-color:#e0186a"></span>Female: horizontal / vertical</span>
+  <span class="chip"><span class="bframe"></span>One board per sub-forest</span>
+</header>
+
+<div class="app">
+  <aside>
+    <!-- ---------------- input ---------------- -->
+    <details class="card" open>
+      <summary>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg>
+        Input
+      </summary>
+      <div class="body">
+        <div class="seg" id="modeSeg">
+          <button data-mode="list" class="on">Adjacency list</button>
+          <button data-mode="gen">Random forest</button>
+        </div>
+
+        <div id="listMode">
+          <textarea id="listInput" rows="7" spellcheck="false" placeholder="*A:B,*C&#10;B:*A&#10;*C:*A&#10;D:*E,F&#10;*E:D&#10;F:D&#10;G:"></textarea>
+          <div class="hint">Same format as the single-board page: one line per vertex, male vertices marked with <code>*</code> wherever they appear, an isolated vertex is <code>D:</code>. For very large forests import a <code>.txt</code> file — it is parsed directly and not copied into the box.</div>
+          <div class="row">
+            <button id="showListGraphBtn" class="btn primary">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Show graph</button>
+            <input type="file" id="importListFile" accept=".txt">
+            <button id="importListBtn" class="btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Import file</button>
+          </div>
+        </div>
+
+        <div id="genMode" style="display:none">
+          <div class="grid2" style="margin-top:12px">
+            <label class="field"><span>Vertices (total)</span><input type="number" id="genN" value="100000" min="1" max="1000000" step="1000"></label>
+            <label class="field"><span>Male share</span><input type="number" id="genMale" value="0.5" min="0" max="1" step="0.05"></label>
+            <label class="field"><span>Large tree: min size</span><input type="number" id="genLmin" value="9" min="1" max="100000" step="1"></label>
+            <label class="field"><span>Large tree: max size</span><input type="number" id="genLmax" value="60" min="1" max="100000" step="1"></label>
+            <label class="field" title="Share of all vertices that lie in small trees of 1 to 3 vertices"><span>Vertices in small trees</span><input type="number" id="genSmall" value="0.25" min="0" max="1" step="0.05"></label>
+            <label class="field" title="Upper bound on the children of a vertex (keeps every pad at most 8 traces)"><span>Max. children</span><input type="number" id="genKids" value="4" min="1" max="7" step="1"></label>
+            <label class="field full"><span>Seed</span><input type="number" id="genSeed" value="7" step="1"></label>
+          </div>
+          <div class="hint">Builds a random gendered forest of large trees (family trees) and small trees of 1–3 vertices, without typing a huge list.</div>
+          <div class="row">
+            <button id="generateBtn" class="btn primary">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Generate &amp; draw</button>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+        <div class="row" style="margin-top:0">
+          <button id="exportListBtn" class="btn sm ghost">Export list</button>
+          <button id="clearBtn" class="btn sm danger" style="margin-left:auto">Clear graph</button>
+        </div>
+      </div>
+    </details>
+
+    <!-- ---------------- partition ---------------- -->
+    <details class="card" open>
+      <summary>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Sub-forests &amp; board grid
+      </summary>
+      <div class="body">
+        <div class="grid2">
+          <label class="field" title="The number of boards is ceil(vertices / this value)"><span>Vertices per board (target)</span><input type="number" id="perBoard" value="400" min="10" max="20000" step="10"></label>
+          <label class="field"><span>Balance boards by</span>
+            <select id="balanceBy">
+              <option value="nodes">Number of vertices</option>
+              <option value="trees">Number of trees</option>
+            </select>
+          </label>
+          <label class="field" title="Seed of the random division into sub-forests (same seed, same division)"><span>Partition seed</span><input type="number" id="partSeed" value="1" step="1"></label>
+          <label class="field" title="0 = choose automatically so the grid of boards matches the window shape"><span>Boards per row (0 = auto)</span><input type="number" id="boardsPerRow" value="0" min="0" max="2000" step="1"></label>
+          <label class="field full" title="Boards are routed in parallel in background threads"><span>Worker threads</span>
+            <select id="workerCount"></select>
+          </label>
+        </div>
+        <div class="hint">Trees are never cut: a tree larger than the target gets a board of its own. Boards nearest to the centre of the view are routed first.</div>
+      </div>
+    </details>
+
+    <!-- ---------------- layout ---------------- -->
+    <details class="card" open>
+      <summary>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        Board layout (per board)
+      </summary>
+      <div class="body">
+        <div class="grid2">
+          <label class="field"><span>Root node (optional)</span><input id="rootNode" type="text" placeholder="auto"></label>
+          <label class="field"><span>Grid pitch (px)</span><input type="number" id="gridPitch" value="18" min="12" max="40" step="1"></label>
+          <label class="field"><span>Max. segment length (steps)</span><input type="number" id="maxSegment" value="6" min="2" max="12" step="1"></label>
+          <label class="field"><span>Pad clearance</span>
+            <select id="padClearance">
+              <option value="2">2 steps (dense)</option>
+              <option value="3">3 steps (airy)</option>
+            </select>
+          </label>
+          <label class="field"><span>Compactness</span><input type="number" id="compactness" value="1.5" min="0" max="6" step="0.25"></label>
+          <label class="field" title="Bonus per grid step that runs parallel to another trace on the neighbouring grid line (0 = off)"><span>Bus bundling</span><input type="number" id="busBundling" value="0.5" min="0" max="1.5" step="0.1"></label>
+          <label class="field"><span>Board aspect (w / h)</span><input type="number" id="boardAspect" value="1.6" min="0.3" max="4" step="0.1"></label>
+          <label class="field" title="Time the squeeze pass may use for one board. Boards are many, so the default is smaller than on the single-board page."><span>Squeeze time per board (ms)</span><input type="number" id="squeezeMs" value="150" min="0" max="10000" step="50"></label>
+          <label class="field full"><span>Placement order</span>
+            <select id="placementOrder">
+              <option value="bfs">Generation by generation (metro)</option>
+              <option value="dfs">Sub-tree by sub-tree (clustered)</option>
+            </select>
+          </label>
+        </div>
+        <div class="stack" style="margin-top:12px">
+          <label class="toggle"><input type="checkbox" id="allowDoglegs" checked> Two-bend traces (doglegs, chamfered corners)</label>
+          <label class="toggle" title="Rips up the sub-trees on each side of a tree and routes them again in a box one grid step smaller, as long as everything still fits"><input type="checkbox" id="squeezeBoard" checked> Squeeze boards (rip-up compaction)</label>
+          <label class="toggle"><input type="checkbox" id="showGrid"> Show grid (when zoomed in)</label>
+          <label class="toggle"><input type="checkbox" id="showMini" checked> Show overview map</label>
+        </div>
+        <div class="grid2" style="margin-top:10px">
+          <label class="field full"><span>Board colour</span>
+            <select id="boardTheme">
+              <option value="blue">Blue solder mask</option>
+              <option value="green">Green solder mask</option>
+            </select>
+          </label>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button id="runLayoutBtn" class="btn primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Run layout</button>
+          <button id="randomizeGendersBtn" class="btn teal">Randomize genders</button>
+        </div>
+        <div class="row">
+          <button id="saveViewBtn" class="btn violet sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Save view JPG</button>
+          <span class="inline" style="flex:1">
+            <input type="number" id="saveBoardNo" min="1" value="1" title="Board number" style="width:72px; flex:none">
+            <button id="saveBoardBtn" class="btn violet sm">Save board JPG</button>
+          </span>
+        </div>
+      </div>
+    </details>
+  </aside>
+
+  <main>
+    <p id="status">Load a forest (adjacency list or file) or generate a random one.</p>
+
+    <section class="card">
+      <div class="toolbar">
+        <div class="zoomgrp">
+          <button id="zoomOutBtn" title="Zoom out">−</button>
+          <span id="zoomLevel">100%</span>
+          <button id="zoomInBtn" title="Zoom in">+</button>
+        </div>
+        <button id="zoomResetBtn" class="btn sm ghost" title="Back to 100%">100%</button>
+        <button id="fitFirstBtn" class="btn sm ghost" title="Zoom to the board in the centre of the view">Fit board</button>
+        <button id="fitAllBtn" class="btn sm ghost" title="Zoom out to show every board">Show all</button>
+        <span class="nav">
+          <input type="number" id="gotoBoard" min="1" placeholder="board #" title="Board number">
+          <button id="gotoBoardBtn" class="btn sm ghost">Go</button>
+          <input type="text" id="findVertex" placeholder="vertex" title="Vertex name">
+          <button id="findVertexBtn" class="btn sm ghost">Find</button>
+        </span>
+        <div class="progress">
+          <div class="bar"><div id="progBar"></div></div>
+          <span id="progText">0 / 0 boards</span>
+        </div>
+      </div>
+      <div class="toolbar2">
+        <span>Drag to move · scroll wheel / two fingers to scroll · Ctrl + scroll or pinch to zoom · double-click to zoom in · hover a pad to trace its connections · click the overview map to jump · drag the bar below to resize</span>
+      </div>
+      <div id="boardWindow">
+        <canvas id="boardCanvas"></canvas>
+        <div id="miniWrap">
+          <div class="cap"><span>OVERVIEW</span><span id="miniInfo"></span></div>
+          <canvas id="miniCanvas"></canvas>
+        </div>
+      </div>
+      <div id="boardResizeHandle" title="Drag up or down to resize the window"></div>
+    </section>
+
+    <section class="card">
+      <div class="head">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        Statistics (all boards)
+      </div>
+      <div id="statsBox"><em>No drawing yet.</em></div>
+    </section>
+
+    <div class="reports">
+      <section class="card report r1">
+        <h3>Pad collisions / clearance <span class="n" id="n1">0</span></h3>
+        <ul id="vertexIssueList"><li class="ok">None</li></ul>
+      </section>
+      <section class="card report r2">
+        <h3>Trace collisions <span class="n" id="n2">0</span></h3>
+        <ul id="traceIssueList"><li class="ok">None</li></ul>
+      </section>
+      <section class="card report r3">
+        <h3>Gender rule <span class="n" id="n3">0</span></h3>
+        <ul id="genderIssueList"><li class="ok">All arrivals follow the gender rule</li></ul>
+      </section>
+    </div>
+
+    <details class="card" id="algoInfo">
+      <summary>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+        How the large board is drawn
+      </summary>
+      <div class="body">
+        <ol>
+          <li><strong>Random division into sub-forests.</strong> The trees are shuffled (with the partition seed) and divided into
+            <div class="formula-box">k = ceil(vertices / vertices-per-board) boards</div>
+            <em>By vertices:</em> trees are taken largest first (equal sizes in random order) and each goes to the board that has the fewest vertices so far, so all boards get almost the same number of vertices. <em>By trees:</em> the shuffled trees are dealt round-robin, so all boards get the same number of trees (±1). A tree is never cut.</li>
+          <li><strong>One board per sub-forest, same algorithm.</strong> Every sub-forest is drawn exactly as on the single-board page: octilinear traces on a grid, the gender rule (female: last segment horizontal / vertical, male: diagonal), generation-by-generation routing with the bus bonus, look-ahead and rip-up and reroute, the squeeze pass, and footprint packing of the trees of that board.</li>
+          <li><strong>Boards in a grid.</strong> The boards are placed side by side in rows and stacked row on row. Each column is as wide as its widest board and each row as high as its highest board; every board sits in a copper frame with its number, so the boards are easy to tell apart.</li>
+          <li><strong>Background routing.</strong> Boards are routed in parallel worker threads, nearest to the centre of the view first; the page stays usable and frames fill in as boards finish.</li>
+          <li><strong>Only what is visible is drawn.</strong> Far away a board is drawn from a small cached image, closer up as traces and pads, and close up with pad names, so the view stays fast even with a million vertices.</li>
+          <li><strong>Verification.</strong> Every board is checked on its own (pads, clearance, traces, crossings, gender rule); the lists below show the findings with their board numbers.</li>
+        </ol>
+        <div class="note">Routing time grows faster than linearly with the size of one tree, so a single tree with many thousands of vertices takes a long time on its own board. Adjacency matrices are not offered here: a matrix of a million vertices would have 10<sup>12</sup> entries.</div>
+      </div>
+    </details>
+  </main>
+</div>
+
+<div id="tip"></div>
+
+<!-- Board routing engine: the same algorithm as the single-board page (index.html). It runs inside worker threads
+     (or on the page itself if workers are not available) and never touches the page. -->
+<script type="text/plain" id="eb-engine">
+// The routing engine below is taken unchanged from index.html (only the root node comes in through S.wantedRoot).
+let ebGraph = {}, ebGender = {}, ebOrder = [];
+
+function ebLabelIndex(name) {
+  const m = /^([A-Z])(\d*)$/.exec(String(name));
+  if (!m) return -1;
+  const suffix = m[2] === "" ? 0 : parseInt(m[2], 10);
+  if (m[2] !== "" && suffix < 1) return -1;
+  return suffix * 26 + (m[1].charCodeAt(0) - 65);
+}
+
+function ebCompareLabels(a, b) {
+  const ia = ebLabelIndex(a), ib = ebLabelIndex(b);
+  if (ia >= 0 && ib >= 0) return ia - ib;
+  if (ia >= 0) return -1;
+  if (ib >= 0) return 1;
+  return String(a).localeCompare(String(b));
+}
+
+function ebComponents() {
+  const seen = new Set();
+  const comps = [];
+  ebOrder.forEach(start => {
+    if (seen.has(start)) return;
+    const comp = [start];
+    seen.add(start);
+    for (let i = 0; i < comp.length; i++) {
+      ebGraph[comp[i]].forEach(v => {
+        if (!seen.has(v)) { seen.add(v); comp.push(v); }
+      });
+    }
+    comps.push(comp);
+  });
+  return comps;
+}
+
+const EB_DX = [1, 1, 0, -1, -1, -1, 0, 1];
+const EB_DY = [0, 1, 1, 1, 0, -1, -1, -1];
+const EB_OFF = 20000;
+const EB_SPAN = 40000;
+const ebKey = (x, y) => (x + EB_OFF) * EB_SPAN + (y + EB_OFF);
+const EB_JOG_MAX = 3;                         // longest middle segment of a dogleg / chamfered corner
+// neighbouring parallel grid lines of a step with orientation o = k & 3 (0: -, 1: \, 2: |, 3: /)
+const EB_SIDE = [[[0, 1], [0, -1]], [[1, 0], [-1, 0]], [[1, 0], [-1, 0]], [[1, 0], [-1, 0]]];
+function ebDirOf(dx, dy) {
+  for (let k = 0; k < 8; k++) if (EB_DX[k] === dx && EB_DY[k] === dy) return k;
+  return -1;
+}
+
+const EB_THEMES = {
+  blue:  { board: "#1b4f97", grid: "#3567ad", outline: "#123d78", trace: "#3e8ee0", shine: "#86c3ff", text: "#d6e7ff" },
+  green: { board: "#159447", grid: "#2bb862", outline: "#0b6a31", trace: "#36c96a", shine: "#7fe3a2", text: "#d8f5df" }
+};
+
+
+// --- Tree helpers ---
+function ebTreeCentre(comp) {
+  if (comp.length <= 2) return comp[0];
+  const inComp = new Set(comp);
+  const bfs = start => {
+    const dist = { [start]: 0 }, par = { [start]: null };
+    const q = [start];
+    let last = start;
+    for (let i = 0; i < q.length; i++) {
+      const u = q[i];
+      last = u;
+      ebGraph[u].forEach(v => {
+        if (inComp.has(v) && !(v in dist)) { dist[v] = dist[u] + 1; par[v] = u; q.push(v); }
+      });
+    }
+    return { last, par };
+  };
+  const a = bfs(comp[0]).last;
+  const r = bfs(a);
+  const path = [];
+  for (let x = r.last; x !== null; x = r.par[x]) path.push(x);
+  return path[Math.floor(path.length / 2)];
+}
+
+// --- 1-3. Layout of one tree on the grid ---
+function ebLayoutTree(comp, root, S) {
+  const pads = new Map();     // key -> vertex
+  const trace = new Map();    // key -> edge key (intermediate trace points)
+  const diag = new Map();     // square key * 2 + type -> edge key (type 0 = "\", 1 = "/")
+  const ori = new Map();      // key -> [n0, n1, n2, n3]: number of trace steps of each orientation touching the point
+  const pos = {}, inDir = {}, paths = {}, forced = [];
+  const bb = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+
+  // Rooted tree
+  const parent = { [root]: null }, children = {}, bfsOrder = [root];
+  for (let i = 0; i < bfsOrder.length; i++) {
+    const u = bfsOrder[i];
+    children[u] = [];
+    ebGraph[u].forEach(v => {
+      if (!(v in parent)) { parent[v] = u; children[u].push(v); bfsOrder.push(v); }
+    });
+  }
+  const size = {};
+  for (let i = bfsOrder.length - 1; i >= 0; i--) {
+    const u = bfsOrder[i];
+    size[u] = 1 + children[u].reduce((s, c) => s + size[c], 0);
+  }
+  Object.keys(children).forEach(u => {
+    children[u].sort((a, b) => (size[b] - size[a]) || ebCompareLabels(a, b));
+  });
+  let order = bfsOrder;
+  if (S.order === "dfs") {
+    order = [];
+    const stack = [root];
+    while (stack.length) {
+      const u = stack.pop();
+      order.push(u);
+      for (let i = children[u].length - 1; i >= 0; i--) stack.push(children[u][i]);
+    }
+  }
+
+  pos[root] = { x: 0, y: 0 };
+  pads.set(ebKey(0, 0), root);
+  const pending = { [root]: children[root].length };   // children of a placed pad that still need a trace
+
+  const C = S.clearance;
+  let limit = null;   // optional box the routing must stay inside (used by the squeeze pass)
+  const inLimit = (x, y) => !limit || (x >= limit.minX && x <= limit.maxX && y >= limit.minY && y <= limit.maxY);
+  const diagSlot = (x1, y1, x2, y2) => {
+    const sx = Math.min(x1, x2), sy = Math.min(y1, y2);
+    const type = ((x2 - x1) * (y2 - y1) > 0) ? 0 : 1;
+    return { mine: ebKey(sx, sy) * 2 + type, other: ebKey(sx, sy) * 2 + (1 - type) };
+  };
+  // the slots alone, without creating an object (used in the hot loops)
+  const diagMine = (x1, y1, x2, y2) => ebKey(Math.min(x1, x2), Math.min(y1, y2)) * 2 + (((x2 - x1) * (y2 - y1) > 0) ? 0 : 1);
+  const diagOther = (x1, y1, x2, y2) => ebKey(Math.min(x1, x2), Math.min(y1, y2)) * 2 + (((x2 - x1) * (y2 - y1) > 0) ? 1 : 0);
+
+  // Orientation bookkeeping of committed traces (used by the bus bonus)
+  function addOri(xs, ys, delta) {
+    for (let i = 1; i < xs.length; i++) {
+      const o = ebDirOf(xs[i] - xs[i - 1], ys[i] - ys[i - 1]) & 3;
+      for (const j of [i - 1, i]) {
+        const key = ebKey(xs[j], ys[j]);
+        let a = ori.get(key);
+        if (!a) { a = [0, 0, 0, 0]; ori.set(key, a); }
+        a[o] += delta;
+        if (a[0] + a[1] + a[2] + a[3] <= 0) ori.delete(key);
+      }
+    }
+  }
+
+  // Bus bonus of the step (ax, ay) -> (bx, by) in direction k: an existing trace runs parallel to it on a
+  // neighbouring grid line (both neighbouring points carry a step of the same orientation)
+  function busGain(ax, ay, bx, by, k) {
+    if (S.bus <= 0) return 0;
+    const o = k & 3;
+    for (const [ox, oy] of EB_SIDE[o]) {
+      const pa = ori.get(ebKey(ax + ox, ay + oy));
+      if (!pa || pa[o] <= 0) continue;
+      const pb = ori.get(ebKey(bx + ox, by + oy));
+      if (pb && pb[o] > 0) return S.bus;
+    }
+    return 0;
+  }
+
+  // Free directions around a placed pad (neighbour point free and no crossing diagonal)
+  function freeDirsAt(x, y) {
+    let f = 0;
+    for (let k = 0; k < 8; k++) {
+      const qx = x + EB_DX[k], qy = y + EB_DY[k];
+      const qk = ebKey(qx, qy);
+      if (pads.has(qk) || trace.has(qk)) continue;
+      if ((k & 1) && diag.has(diagOther(x, y, qx, qy))) continue;
+      f++;
+    }
+    return f;
+  }
+
+  // Free landing points two steps away from a pad (where the pads of its children can go)
+  function landingPointsAt(x, y) {
+    let f = 0;
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== 2) continue;
+        const qx = x + dx, qy = y + dy;
+        const qk = ebKey(qx, qy);
+        if (pads.has(qk) || trace.has(qk) || padTooClose(qx, qy, ebKey(x, y))) continue;
+        f++;
+      }
+    }
+    return f;
+  }
+
+  function padTooClose(x, y, ignoreKey) {
+    for (let dx = -(C - 1); dx <= C - 1; dx++) {
+      for (let dy = -(C - 1); dy <= C - 1; dy++) {
+        const k = ebKey(x + dx, y + dy);
+        if (k !== ignoreKey && pads.has(k)) return true;
+      }
+    }
+    return false;
+  }
+
+  // Finds a trace for child v of u (null if none fits and conflicts are not allowed)
+  function findRoute(u, v, allowConflicts) {
+    const P = pos[u];
+    const wantEven = ebGender[v] !== "M";
+    const kids = children[v].length;
+    const want = size[v] - 1;
+    const roomRadius = Math.min(S.roomMaxRadius, Math.max(2, Math.ceil(Math.sqrt(size[v]) * 0.9)));
+    const roomWant = Math.min(want * S.roomPerVertex, ((2 * roomRadius + 1) ** 2 - 1) * 0.85);
+    let best = null;
+
+    // Reservation: a trace may not take the last free directions of a pad whose children are still waiting
+    const freeCache = new Map();
+    const landCache = new Map();
+    const hits = new Map();
+    const landHits = new Map();
+    const needOf = w => (w === u ? pending[u] - 1 : (pending[w] || 0));
+    const freeOf = w => {
+      if (!freeCache.has(w)) freeCache.set(w, freeDirsAt(pos[w].x, pos[w].y));
+      return freeCache.get(w);
+    };
+    const landOf = w => {
+      if (!landCache.has(w)) landCache.set(w, landingPointsAt(pos[w].x, pos[w].y));
+      return landCache.get(w);
+    };
+    // For every grid point, the pads with waiting children at Chebyshev distance 1 (near) and 2 (ring, without u),
+    // built once per call: each step then costs one lookup instead of a 5 x 5 scan (same result).
+    const waitNear = new Map(), waitRing = new Map();
+    Object.keys(pending).forEach(w => {
+      if (!pos[w] || needOf(w) <= 0) return;
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dy = -2; dy <= 2; dy++) {
+          if (dx === 0 && dy === 0) continue;
+          const ring = Math.max(Math.abs(dx), Math.abs(dy)) === 2;
+          if (ring && w === u) continue;
+          const m = ring ? waitRing : waitNear, k = ebKey(pos[w].x + dx, pos[w].y + dy);
+          if (!m.has(k)) m.set(k, []);
+          m.get(k).push(w);
+        }
+      }
+    });
+    // per end point caches of the look-ahead (they depend only on the committed drawing)
+    const endCache = new Map();
+
+    const xs = [], ys = [];          // current candidate path (grid points, starting at P)
+    const corners = [];              // indices of bend points
+    const gains = [];                // bus bonus of every step of the candidate
+    let len = 0, collisions = 0, gain = 0;
+
+    function free(x, y, k, forcedMode) {
+      // returns -1 = blocked, 0 = free, 1 = free only by colliding (forced mode)
+      if (!inLimit(x, y)) return -1;
+      const key = ebKey(x, y);
+      if (pads.has(key)) return -1;
+      let hit = 0;
+      if (trace.has(key)) hit++;
+      if (k & 1) {
+        const px = x - EB_DX[k], py = y - EB_DY[k];
+        if (diag.has(diagOther(px, py, x, y)) || diag.has(diagMine(px, py, x, y))) hit++;
+      }
+      for (let i = 0; i < xs.length; i++) if (xs[i] === x && ys[i] === y) return -1;
+      if (hit === 0) return 0;
+      return forcedMode ? hit : -1;
+    }
+
+    function evaluate(finalDir, d1, bends) {
+      const n = xs.length - 1;
+      const ex = xs[n], ey = ys[n];
+      const ekey = ebKey(ex, ey);
+      // end point legal? (cached; null = not legal)
+      let ec = endCache.get(ekey);
+      if (ec === undefined) {
+        ec = (trace.has(ekey) || padTooClose(ex, ey)) ? null : { nb: null, room: 0 };
+        endCache.set(ekey, ec);
+      }
+      if (ec === null) return;
+
+      // bounding-box growth (corner points of the trace are enough: segments are straight between them)
+      let minX = bb.minX, maxX = bb.maxX, minY = bb.minY, maxY = bb.maxY;
+      const consider = i => {
+        if (xs[i] < minX) minX = xs[i];
+        if (xs[i] > maxX) maxX = xs[i];
+        if (ys[i] < minY) minY = ys[i];
+        if (ys[i] > maxY) maxY = ys[i];
+      };
+      corners.forEach(consider);
+      consider(n);
+      const growth = (maxX - minX + maxY - minY) - (bb.maxX - bb.minX + bb.maxY - bb.minY);
+
+      // exact lower bound of the score (look-ahead penalties are >= 0, continuation bonus <= 1): skip the
+      // expensive look-ahead when this candidate cannot beat the best one found so far
+      if (best) {
+        const outwardMax = S.outward * (Math.max(Math.abs(ex), Math.abs(ey)) - Math.max(Math.abs(P.x), Math.abs(P.y)));
+        const lb = len - gain + 0.7 * bends + S.compact * growth - 1.0 - outwardMax + collisions * 400;
+        if (lb >= best.score - 1e-9) return;
+      }
+
+      // committed-state look-ahead data of this end point (computed once, only for candidates that pass the bound)
+      if (ec.nb === null) {
+        const nb = [];
+          for (let k = 0; k < 8; k++) {
+            const qx = ex + EB_DX[k], qy = ey + EB_DY[k];
+            const qk = ebKey(qx, qy);
+            if (pads.has(qk) || trace.has(qk)) continue;
+            if ((k & 1) && diag.has(diagOther(ex, ey, qx, qy))) continue;
+            nb.push(qx, qy);
+          }
+          let room = 0;
+          if (want > 0) {
+            const R = roomRadius;
+            for (let dx = -R; dx <= R; dx++) {
+              for (let dy = -R; dy <= R; dy++) {
+                if (dx === 0 && dy === 0) continue;
+                const qk = ebKey(ex + dx, ey + dy);
+                if (!pads.has(qk) && !trace.has(qk)) room++;
+              }
+            }
+          }
+          ec.nb = nb;
+          ec.room = room;
+      }
+      // look-ahead: free directions at the new pad for its own children (minus the candidate's own points), and
+      // free room for its sub-tree (over a radius that grows with the size of the sub-tree)
+      let freeDirs = 0;
+      for (let q = 0; q < ec.nb.length; q += 2) {
+        const qx = ec.nb[q], qy = ec.nb[q + 1];
+        let onPath = false;
+        for (let i = 0; i < n; i++) if (xs[i] === qx && ys[i] === qy) { onPath = true; break; }
+        if (!onPath) freeDirs++;
+      }
+      let roomPen = 0;
+      if (want > 0) roomPen = S.roomWeight * Math.max(0, roomWant - ec.room);
+      // radial growth (metro map): reward moving away from the root of the tree
+      const outward = S.outward * (Math.max(Math.abs(ex), Math.abs(ey)) - Math.max(Math.abs(P.x), Math.abs(P.y)));
+      const lookPen = Math.max(0, kids - freeDirs) * 60;
+      const cont = (inDir[u] !== undefined && d1 === inDir[u]) ? 1.0 : 0;
+      const score = len - gain + 0.7 * bends + S.compact * growth + lookPen + roomPen - cont - outward + collisions * 400;
+
+      if (!best || score < best.score - 1e-9) {
+        best = { score, xs: xs.slice(), ys: ys.slice(), finalDir, bends, collisions };
+      }
+    }
+
+    // pads with waiting children next to point (x, y); returns false if taking the point would starve one of them
+    // (the ring test skips u itself: the current trace usually lands next to u)
+    function reserveHit(x, y, apply) {
+      const key = ebKey(x, y);
+      const near = waitNear.get(key), ring = waitRing.get(key);
+      if (!near && !ring) return true;
+      if (apply === 0) {
+        if (near) for (const w of near) {
+          if (freeOf(w) - ((hits.get(w) || 0) + 1) < needOf(w)) return false;
+        }
+        if (ring) for (const w of ring) {
+          if (landOf(w) - ((landHits.get(w) || 0) + 1) < needOf(w)) return false;
+        }
+        return true;
+      }
+      if (near) for (const w of near) hits.set(w, (hits.get(w) || 0) + apply);
+      if (ring) for (const w of ring) landHits.set(w, (landHits.get(w) || 0) + apply);
+      return true;
+    }
+
+    function stepTo(k, forcedMode) {
+      const n = xs.length - 1;
+      const x = xs[n] + EB_DX[k], y = ys[n] + EB_DY[k];
+      const f = free(x, y, k, forcedMode);
+      if (f < 0) return false;
+      if (!forcedMode) {
+        if (!reserveHit(x, y, 0)) return false;
+        reserveHit(x, y, 1);
+      }
+      const g = forcedMode ? 0 : busGain(xs[n], ys[n], x, y, k);
+      xs.push(x); ys.push(y);
+      gains.push(g);
+      gain += g;
+      len += (k & 1) ? Math.SQRT2 : 1;
+      collisions += f;
+      return true;
+    }
+    function unstep(k, f, forcedMode) {
+      if (!forcedMode) reserveHit(xs[xs.length - 1], ys[ys.length - 1], -1);
+      xs.pop(); ys.pop();
+      gain -= gains.pop();
+      len -= (k & 1) ? Math.SQRT2 : 1;
+      collisions -= f;
+    }
+    // Branch and bound: when every further step adds a non-negative cost (bus bonus <= 1, no radial reward), a
+    // partial trace whose lower bound already reaches the best score cannot be extended into a better candidate,
+    // so the walk stops there (exact: the same best candidate is found, only faster).
+    const canPrune = S.bus <= 1 && S.outward === 0;
+    function partialBound() {
+      const n = xs.length - 1;
+      let minX = bb.minX, maxX = bb.maxX, minY = bb.minY, maxY = bb.maxY;
+      for (let c = 0; c <= corners.length; c++) {
+        const i = c < corners.length ? corners[c] : n;
+        if (xs[i] < minX) minX = xs[i];
+        if (xs[i] > maxX) maxX = xs[i];
+        if (ys[i] < minY) minY = ys[i];
+        if (ys[i] > maxY) maxY = ys[i];
+      }
+      const growth = (maxX - minX + maxY - minY) - (bb.maxX - bb.minX + bb.maxY - bb.minY);
+      return len - gain + 0.7 * corners.length + S.compact * growth - 1.0 + collisions * 400;
+    }
+    // walk with bookkeeping of collision counts so steps can be undone
+    function walk(k, forcedMode, maxLen, onEach) {
+      const hist = [];
+      for (let i = 1; i <= maxLen; i++) {
+        const before = collisions;
+        if (!stepTo(k, forcedMode)) break;
+        hist.push(collisions - before);
+        if (canPrune && best && partialBound() >= best.score - 1e-9) break;
+        onEach(i);
+      }
+      for (let i = hist.length - 1; i >= 0; i--) unstep(k, hist[i], forcedMode);
+    }
+
+    function search(L, jog, forcedMode) {
+      xs.length = 0; ys.length = 0; corners.length = 0; gains.length = 0; hits.clear(); landHits.clear();
+      xs.push(P.x); ys.push(P.y);
+      len = 0; collisions = 0; gain = 0;
+      for (let d1 = 0; d1 < 8; d1++) {
+        walk(d1, forcedMode, L, () => {
+          if (((d1 & 1) === 0) === wantEven) evaluate(d1, d1, 0);
+          for (const s of [1, -1]) {
+            const d2 = (d1 + s + 8) % 8;
+            corners.push(xs.length - 1);
+            walk(d2, forcedMode, L, c => {
+              if (((d2 & 1) === 0) === wantEven) evaluate(d2, d1, 1);
+              // two-bend shapes: the last segment has the parity of d1
+              if (jog && c <= EB_JOG_MAX && ((d1 & 1) === 0) === wantEven) {
+                corners.push(xs.length - 1);
+                walk(d1, forcedMode, L, () => evaluate(d1, d1, 2));            // dogleg: back to d1
+                const d3 = (d2 + s + 8) % 8;
+                walk(d3, forcedMode, L, () => evaluate(d3, d1, 2));            // chamfered 90-deg corner
+                corners.pop();
+              }
+            });
+            corners.pop();
+          }
+        });
+      }
+    }
+
+    // Maze router (Lee / Dijkstra on the grid, as used for PCB routing): any number of 45-degree turns; 90-degree
+    // turns are allowed but expensive (a real board chamfers its corners).
+    // Used when no straight / one-bend / dogleg trace fits. The state is (grid point, direction of arrival).
+    function mazeRoute(strictLookahead) {
+      const MAX_EXPANSIONS = 60000;
+      const heap = [];
+      const push = (c, s) => {
+        heap.push({ c, s });
+        let i = heap.length - 1;
+        while (i > 0) {
+          const pi = (i - 1) >> 1;
+          if (heap[pi].c <= heap[i].c) break;
+          [heap[pi], heap[i]] = [heap[i], heap[pi]];
+          i = pi;
+        }
+      };
+      const pop = () => {
+        const top = heap[0];
+        const last = heap.pop();
+        if (heap.length) {
+          heap[0] = last;
+          let i = 0;
+          for (;;) {
+            const l = 2 * i + 1, r = l + 1;
+            let m = i;
+            if (l < heap.length && heap[l].c < heap[m].c) m = l;
+            if (r < heap.length && heap[r].c < heap[m].c) m = r;
+            if (m === i) break;
+            [heap[m], heap[i]] = [heap[i], heap[m]];
+            i = m;
+          }
+        }
+        return top;
+      };
+      const dist = new Map(), prev = new Map(), info = new Map();
+      const stateKey = (x, y, d) => ebKey(x, y) * 8 + d;
+
+      const stepOk = (fx, fy, d) => {
+        const x = fx + EB_DX[d], y = fy + EB_DY[d];
+        if (!inLimit(x, y)) return null;
+        const k = ebKey(x, y);
+        if (pads.has(k) || trace.has(k)) return null;
+        if ((d & 1) && (diag.has(diagOther(fx, fy, x, y)) || diag.has(diagMine(fx, fy, x, y)))) return null;
+        let extra = 0;
+        const near = waitNear.get(k), ring = waitRing.get(k);
+        if (near) for (const w of near) {
+          if (freeOf(w) - 1 < needOf(w)) return null;   // would starve a pad that still has children to route
+          extra += 2;
+        }
+        if (ring) for (const w of ring) {
+          if (landOf(w) - 1 < needOf(w)) return null;
+          extra += 1;
+        }
+        const stepLen = (d & 1) ? Math.SQRT2 : 1;
+        const g = Math.min(busGain(fx, fy, x, y, d), stepLen - 0.2);   // keeps every step cost positive
+        return { x, y, extra: extra - g };
+      };
+
+      for (let d = 0; d < 8; d++) {
+        const s = stepOk(P.x, P.y, d);
+        if (!s) continue;
+        const sk = stateKey(s.x, s.y, d);
+        const c = ((d & 1) ? Math.SQRT2 : 1) + s.extra;
+        dist.set(sk, c);
+        prev.set(sk, -1);
+        info.set(sk, { x: s.x, y: s.y, d });
+        push(c, sk);
+      }
+
+      let expansions = 0;
+      while (heap.length && expansions < MAX_EXPANSIONS) {
+        const { c, s } = pop();
+        if (c > dist.get(s)) continue;
+        expansions++;
+        const st = info.get(s);
+        // goal test: valid pad position, arrival direction obeys the gender rule
+        if (((st.d & 1) === 0) === wantEven && !padTooClose(st.x, st.y) &&
+            (!strictLookahead || freeDirsAt(st.x, st.y) >= kids)) {
+          const pxs = [], pys = [];
+          let bends = 0, lastD = st.d;
+          for (let cur = s; cur !== -1; cur = prev.get(cur)) {
+            const ci = info.get(cur);
+            pxs.push(ci.x); pys.push(ci.y);
+            if (ci.d !== lastD) { bends++; lastD = ci.d; }
+          }
+          pxs.push(P.x); pys.push(P.y);
+          pxs.reverse(); pys.reverse();
+          return { score: c, xs: pxs, ys: pys, finalDir: st.d, bends, collisions: 0 };
+        }
+        for (const turn of [0, 1, -1, 2, -2]) {
+          const nd = (st.d + turn + 8) % 8;
+          const nx = stepOk(st.x, st.y, nd);
+          if (!nx) continue;
+          const nc = c + ((nd & 1) ? Math.SQRT2 : 1) + (turn === 0 ? 0 : (Math.abs(turn) === 1 ? 0.7 : 3.0)) + nx.extra;
+          const nk = stateKey(nx.x, nx.y, nd);
+          if (!dist.has(nk) || nc < dist.get(nk) - 1e-9) {
+            dist.set(nk, nc);
+            prev.set(nk, s);
+            info.set(nk, { x: nx.x, y: nx.y, d: nd });
+            push(nc, nk);
+          }
+        }
+      }
+      return null;
+    }
+
+    const lengths = [S.maxSeg, S.maxSeg * 2];
+    for (const L of lengths) {
+      search(L, S.doglegs && L === S.maxSeg, false);
+      if (best) break;
+    }
+    if (!best) best = mazeRoute(true) || mazeRoute(false);
+    if (best || !allowConflicts) return best;
+
+    search(Math.max(S.maxSeg * 2, (bb.maxX - bb.minX) + (bb.maxY - bb.minY) + 4), false, true);
+    if (!best) {
+      // last resort: a new pad just outside the tree, joined by a straight trace (reported as a conflict)
+      const x = bb.maxX + C + 1;
+      const xs2 = [P.x], ys2 = [P.y];
+      for (let cx = P.x + 1; cx <= x; cx++) { xs2.push(cx); ys2.push(P.y); }
+      best = { score: 0, xs: xs2, ys: ys2, finalDir: 0, bends: 0, collisions: 1 };
+    }
+    return best;
+  }
+
+  function commit(u, v, best) {
+    const ek = [u, v].sort().join("-");
+    const n = best.xs.length - 1;
+    pos[v] = { x: best.xs[n], y: best.ys[n] };
+    pads.set(ebKey(pos[v].x, pos[v].y), v);
+    for (let i = 1; i <= n; i++) {
+      const x = best.xs[i], y = best.ys[i];
+      if (i < n) trace.set(ebKey(x, y), ek);
+      const px = best.xs[i - 1], py = best.ys[i - 1];
+      if (x !== px && y !== py) diag.set(diagSlot(px, py, x, y).mine, ek);
+      if (x < bb.minX) bb.minX = x;
+      if (x > bb.maxX) bb.maxX = x;
+      if (y < bb.minY) bb.minY = y;
+      if (y > bb.maxY) bb.maxY = y;
+    }
+    addOri(best.xs, best.ys, 1);
+    inDir[v] = best.finalDir;
+    pending[u] = Math.max(0, (pending[u] || 0) - 1);
+    pending[v] = children[v].length;
+    paths[ek] = { u, v, xs: best.xs, ys: best.ys, bends: best.bends };
+    if (best.collisions > 0) forced.push(`${u} → ${v}`);
+  }
+
+  // --- Rip-up and reroute (as in PCB routers) ---
+  // A trace to a vertex whose own children are not placed yet can be removed and drawn again elsewhere.
+  function ripUp(ek) {
+    const p = paths[ek];
+    const n = p.xs.length - 1;
+    for (let i = 1; i <= n; i++) {
+      if (i < n) trace.delete(ebKey(p.xs[i], p.ys[i]));
+      const px = p.xs[i - 1], py = p.ys[i - 1];
+      if (p.xs[i] !== px && p.ys[i] !== py) diag.delete(diagSlot(px, py, p.xs[i], p.ys[i]).mine);
+    }
+    addOri(p.xs, p.ys, -1);
+    pads.delete(ebKey(pos[p.v].x, pos[p.v].y));
+    delete pos[p.v];
+    delete inDir[p.v];
+    delete pending[p.v];
+    delete paths[ek];
+    pending[p.u] = (pending[p.u] || 0) + 1;
+  }
+
+  function snapshot() {
+    return {
+      pads: new Map(pads), trace: new Map(trace), diag: new Map(diag),
+      ori: new Map(Array.from(ori, ([k, a]) => [k, a.slice()])),
+      pos: Object.assign({}, pos), inDir: Object.assign({}, inDir), paths: Object.assign({}, paths),
+      pending: Object.assign({}, pending), bb: Object.assign({}, bb), forced: forced.length
+    };
+  }
+
+  function restore(s) {
+    const refill = (m, src) => { m.clear(); src.forEach((val, key) => m.set(key, val)); };
+    refill(pads, s.pads); refill(trace, s.trace); refill(diag, s.diag);
+    ori.clear(); s.ori.forEach((a, k) => ori.set(k, a.slice()));
+    const reobj = (o, src) => { Object.keys(o).forEach(k => delete o[k]); Object.assign(o, src); };
+    reobj(pos, s.pos); reobj(inDir, s.inDir); reobj(paths, s.paths); reobj(pending, s.pending);
+    Object.assign(bb, s.bb);
+    forced.length = s.forced;
+  }
+
+  // Routes v from u; when it does not fit, nearby movable traces are ripped up and rerouted after v
+  function route(u, v) {
+    const direct = findRoute(u, v, false);
+    if (direct) { commit(u, v, direct); return true; }
+
+    const P = pos[u];
+    const movable = Object.keys(paths)
+      .map(ek => paths[ek])
+      .filter(p => p.v !== u && children[p.v].every(c => !(c in pos)))
+      .map(p => {
+        let d = Infinity;
+        for (let i = 1; i < p.xs.length; i++) d = Math.min(d, Math.max(Math.abs(p.xs[i] - P.x), Math.abs(p.ys[i] - P.y)));
+        return { ek: [p.u, p.v].sort().join("-"), u: p.u, v: p.v, d };
+      })
+      .filter(m => m.d <= 4)
+      .sort((a, b) => a.d - b.d);
+
+    for (let m = 1; m <= Math.min(6, movable.length); m++) {
+      const saved = snapshot();
+      const ripped = movable.slice(0, m);
+      ripped.forEach(r => ripUp(r.ek));
+      const r0 = findRoute(u, v, false);
+      if (r0) {
+        commit(u, v, r0);
+        let ok = true;
+        for (const r of ripped) {
+          const rr = findRoute(r.u, r.v, false);
+          if (!rr) { ok = false; break; }
+          commit(r.u, r.v, rr);
+        }
+        if (ok) return true;
+      }
+      restore(saved);
+    }
+
+    commit(u, v, findRoute(u, v, true));
+    return true;
+  }
+
+  for (const u of order) {
+    for (const v of children[u]) {
+      route(u, v);
+    }
+  }
+
+  // --- Squeeze (rip-up compaction, as in VLSI / PCB layout compaction) ---
+  // Repeatedly takes one side of the bounding box, rips up every sub-tree that touches that side and routes it
+  // again inside the box shrunk by one grid step. A shrink is kept only if everything routes without conflicts.
+  function recomputeBB() {
+    bb.minX = bb.maxX = pos[root].x;
+    bb.minY = bb.maxY = pos[root].y;
+    Object.keys(paths).forEach(ek => {
+      const p = paths[ek];
+      for (let i = 0; i < p.xs.length; i++) {
+        if (p.xs[i] < bb.minX) bb.minX = p.xs[i];
+        if (p.xs[i] > bb.maxX) bb.maxX = p.xs[i];
+        if (p.ys[i] < bb.minY) bb.minY = p.ys[i];
+        if (p.ys[i] > bb.maxY) bb.maxY = p.ys[i];
+      }
+    });
+  }
+  function squeeze(budget) {
+    const t0 = performance.now();
+    let lastDur = 0;
+    const maxRip = Math.max(12, Math.ceil(bfsOrder.length * 0.3));
+    const subtree = v => { const out = [v]; for (let i = 0; i < out.length; i++) out.push(...children[out[i]]); return out; };
+    let fails = 0, side = 0, shrinks = 0;
+    while (fails < 4) {
+      const stepStart = performance.now();
+      if (stepStart - t0 + lastDur > budget) break;   // start a step only if it should finish within the budget
+      const sd = side;
+      side = (side + 1) % 4;
+      recomputeBB();
+      const horizontal = sd < 2;
+      if ((horizontal ? bb.maxX - bb.minX : bb.maxY - bb.minY) < 2) { fails++; continue; }
+      const line = [bb.maxX, bb.minX, bb.maxY, bb.minY][sd];
+      const onLine = (x, y) => (horizontal ? x : y) === line;
+      const lim = Object.assign({}, bb);
+      if (sd === 0) lim.maxX--; else if (sd === 1) lim.minX++; else if (sd === 2) lim.maxY--; else lim.minY++;
+
+      const touch = new Set();
+      Object.keys(pos).forEach(v => { if (onLine(pos[v].x, pos[v].y)) touch.add(v); });
+      Object.keys(paths).forEach(ek => {
+        const p = paths[ek];
+        for (let i = 0; i < p.xs.length; i++) if (onLine(p.xs[i], p.ys[i])) { touch.add(p.v); break; }
+      });
+      if (touch.has(root)) { fails++; continue; }
+      const R = new Set();
+      touch.forEach(v => subtree(v).forEach(w => R.add(w)));
+      if (R.size > maxRip) { fails++; continue; }
+
+      const saved = snapshot();
+      const forcedBefore = forced.length;
+      order.filter(v => R.has(v)).reverse().forEach(v => ripUp([parent[v], v].sort().join("-")));
+      recomputeBB();
+      limit = lim;
+      for (const v of order) if (R.has(v)) route(parent[v], v);
+      limit = null;
+      if (forced.length > forcedBefore) { restore(saved); fails++; }
+      else { fails = 0; shrinks++; }
+      lastDur = performance.now() - stepStart;
+    }
+    recomputeBB();
+    return shrinks;
+  }
+  const result = { pos, paths, bb, forced, root, shrinks: 0 };
+  // the squeeze works on the internal state, so it can also be run later on a chosen attempt (no re-layout)
+  result.squeeze = budget => {
+    if (bfsOrder.length < 4) return 0;
+    const k = squeeze(budget);
+    result.shrinks += k;
+    return k;
+  };
+  if (S.squeeze) result.squeeze(S.squeezeMs);
+  return result;
+}
+
+// A tree whose routing needed conflicting traces is laid out again: with the user's settings plus a radial
+// (outward-growing, less compact) variant, from alternative roots (if the user did not fix the root: the
+// highest-degree vertex, the first vertex, neighbours of the centre), then with further setting variants.
+// The result with the fewest conflicts (then the smallest board at the chosen aspect ratio) is kept; retries stop
+// after a time budget.
+function ebLayoutTreeBest(comp, root, S, rootFixed) {
+  const other = S.order === "bfs" ? "dfs" : "bfs";
+  const radial = Object.assign({}, S, { compact: S.compact * 0.5, outward: 0.6 });
+  const roomy = Object.assign({}, S, { compact: S.compact * 0.5, roomPerVertex: 3, roomMaxRadius: 4 });
+  const later = [
+    Object.assign({}, S, { bus: 0 }),
+    Object.assign({}, S, { compact: S.compact * 0.5 }),
+    Object.assign({}, S, { compact: 0.25 }),
+    Object.assign({}, S, { maxSeg: Math.min(12, S.maxSeg + 3), compact: S.compact * 0.5 }),
+    Object.assign({}, S, { order: other })
+  ];
+  const roots = [root];
+  if (!rootFixed && comp.length > 2) {
+    const byDegree = comp.slice().sort((a, b) => (ebGraph[b].length - ebGraph[a].length) || ebCompareLabels(a, b));
+    [byDegree[0], comp[0]].concat(ebGraph[root]).forEach(r => { if (!roots.includes(r)) roots.push(r); });
+  }
+  const attempts = [];
+  roots.forEach(r => { attempts.push([r, S], [r, radial]); });
+  roots.forEach(r => { attempts.push([r, roomy]); });
+  later.forEach(v => roots.forEach(r => attempts.push([r, v])));
+
+  // Attempts run without the squeeze pass. Until one is conflict-free, the time budget is BUDGET_MS; after that
+  // further attempts are tried only while they should fit in CHOOSE_MS, to find a smaller conflict-free board.
+  // An extra attempt for a smaller board is started only if it should finish within CHOOSE_MS (judged by the
+  // previous attempt).
+  // The squeeze pass then runs on the chosen attempt itself.
+  let best = null, okSince = null, lastDur = 0;
+  const t0 = performance.now();
+  const BUDGET_MS = 4000, CHOOSE_MS = S.chooseMs;
+  const plain = v => Object.assign({}, v, { squeeze: false });
+  for (const [r, v] of attempts) {
+    const now = performance.now();
+    if (best && now - t0 > BUDGET_MS) break;                      // as before: retries while routes conflict
+    if (okSince !== null && now - okSince + lastDur > CHOOSE_MS) break;
+    const t = ebLayoutTree(comp, r, plain(v));
+    lastDur = performance.now() - now;
+    // board size at the wanted aspect ratio: area of the smallest w/h = aspect box around the tree
+    const bw = t.bb.maxX - t.bb.minX + 1, bh = t.bb.maxY - t.bb.minY + 1;
+    const side = Math.max(bw, bh * S.aspect);
+    const area = side * side / S.aspect;
+    if (!best || t.forced.length < best.t.forced.length ||
+        (t.forced.length === best.t.forced.length && area < best.area)) {
+      best = { t, area, r, v };
+    }
+    if (best.t.forced.length === 0 && okSince === null) okSince = performance.now();
+  }
+  if (S.squeeze) best.t.squeeze(S.squeezeMs);
+  return best.t;
+}
+
+// --- 4. Forest packing ---
+// The forest is expected to consist of LARGE trees (>= 9 vertices) and SMALL trees (<= 3 vertices); medium trees
+// (4..8) are rare. Large and medium trees are routed (section 3). Small trees are never routed: their drawings are
+// built directly from STRAIGHT traces (a tree of two vertices is always one straight trace, never a bend), and every
+// small tree gets a list of shape variants. Packing then works on one flat board grid:
+//   1. large trees, biggest first, each in the best of its 8 rotations / reflections, keeping the board smallest for
+//      the chosen aspect ratio;
+//   2. medium trees, then small trees (3, 2, 1 vertices), nestled into the gaps: among the positions that keep the
+//      board smallest, the one with the most occupied points around its pads (closest to the big trees) wins.
+// The rules between trees are the same as inside a tree: no shared grid point, no crossing diagonals, pads at least
+// the clearance apart.
+const EB_LARGE_MIN = 9, EB_SMALL_MAX = 3;
+
+// Rotations by 90 degrees and reflections keep orthogonal steps orthogonal and diagonal steps diagonal, so every
+// transformed drawing is still valid and still obeys the gender rule.
+const EB_D8 = [
+  (x, y) => [x, y], (x, y) => [-y, x], (x, y) => [-x, -y], (x, y) => [y, -x],
+  (x, y) => [-x, y], (x, y) => [y, x], (x, y) => [x, -y], (x, y) => [-y, -x]
+];
+
+// A drawing of one tree in its own coordinates with its bounding box and footprint
+function ebMakeVariant(pos, paths, root, rank) {
+  const pads = [], pts = [], diags = [];
+  const seen = new Set();
+  const bb = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+  const addPt = (x, y) => {
+    const k = ebKey(x, y);
+    if (seen.has(k)) return;
+    seen.add(k);
+    pts.push(x, y);
+    if (x < bb.minX) bb.minX = x;
+    if (x > bb.maxX) bb.maxX = x;
+    if (y < bb.minY) bb.minY = y;
+    if (y > bb.maxY) bb.maxY = y;
+  };
+  Object.keys(pos).forEach(n => { pads.push(pos[n].x, pos[n].y); addPt(pos[n].x, pos[n].y); });
+  Object.keys(paths).forEach(k => {
+    const p = paths[k];
+    for (let i = 0; i < p.xs.length; i++) {
+      addPt(p.xs[i], p.ys[i]);
+      if (i > 0 && p.xs[i] !== p.xs[i - 1] && p.ys[i] !== p.ys[i - 1]) {
+        const dx = p.xs[i] - p.xs[i - 1], dy = p.ys[i] - p.ys[i - 1];
+        diags.push(Math.min(p.xs[i], p.xs[i - 1]), Math.min(p.ys[i], p.ys[i - 1]), dx * dy > 0 ? 0 : 1);
+      }
+    }
+  });
+  return { pos, paths, root, rank, bb, fp: { pads, pts, diags } };
+}
+
+// Geometry key of a variant (labels ignored), used to drop duplicate variants
+function ebGeomKey(v) {
+  const p = [], t = [];
+  for (let i = 0; i < v.fp.pads.length; i += 2) p.push((v.fp.pads[i] - v.bb.minX) + "," + (v.fp.pads[i + 1] - v.bb.minY));
+  for (let i = 0; i < v.fp.pts.length; i += 2) t.push((v.fp.pts[i] - v.bb.minX) + "," + (v.fp.pts[i + 1] - v.bb.minY));
+  return p.sort().join(";") + "|" + t.sort().join(";");
+}
+
+function ebTransformed(v, k) {
+  const f = EB_D8[k];
+  const pos = {}, paths = {};
+  Object.keys(v.pos).forEach(n => { const [x, y] = f(v.pos[n].x, v.pos[n].y); pos[n] = { x, y }; });
+  Object.keys(v.paths).forEach(e => {
+    const p = v.paths[e], xs = [], ys = [];
+    for (let i = 0; i < p.xs.length; i++) { const [x, y] = f(p.xs[i], p.ys[i]); xs.push(x); ys.push(y); }
+    paths[e] = { u: p.u, v: p.v, bends: p.bends, xs, ys };
+  });
+  return ebMakeVariant(pos, paths, v.root, v.rank);
+}
+
+// The 8 rotations / reflections of a routed tree, duplicates removed
+function ebDihedralVariants(v) {
+  const out = [], keys = new Set();
+  for (let k = 0; k < 8; k++) {
+    const t = k === 0 ? v : ebTransformed(v, k);
+    const key = ebGeomKey(t);
+    if (!keys.has(key)) { keys.add(key); out.push(t); }
+  }
+  return out;
+}
+
+// Checks a small drawing (pad clearance, exclusive trace points, no crossing diagonals)
+function ebSmallValid(pos, paths, C) {
+  const names = Object.keys(pos);
+  for (let i = 0; i < names.length; i++) {
+    for (let j = i + 1; j < names.length; j++) {
+      const a = pos[names[i]], b = pos[names[j]];
+      if (Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) < C) return false;
+    }
+  }
+  const padSet = new Set(names.map(n => ebKey(pos[n].x, pos[n].y)));
+  const used = new Set(), dg = new Set();
+  for (const e of Object.keys(paths)) {
+    const p = paths[e];
+    for (let i = 1; i < p.xs.length; i++) {
+      if (i < p.xs.length - 1) {
+        const k = ebKey(p.xs[i], p.ys[i]);
+        if (padSet.has(k) || used.has(k)) return false;
+        used.add(k);
+      }
+      const dx = p.xs[i] - p.xs[i - 1], dy = p.ys[i] - p.ys[i - 1];
+      if (dx !== 0 && dy !== 0) {
+        const sq = ebKey(Math.min(p.xs[i], p.xs[i - 1]), Math.min(p.ys[i], p.ys[i - 1])) * 2;
+        const ty = dx * dy > 0 ? 0 : 1;
+        if (dg.has(sq + 1 - ty)) return false;
+        dg.add(sq + ty);
+      }
+    }
+  }
+  return true;
+}
+
+// All drawings of a tree with 1..3 vertices that use only straight traces. Directions follow the gender rule
+// (orthogonal into a female child, diagonal into a male child); lengths are the clearance C (and C + 1 for two vertices); any vertex
+// may be the root (or only the Root Node, if it lies in this tree). Rank = extra trace length (shorter wins ties).
+function ebSmallVariants(comp, C, wantedRoot) {
+  if (comp.length === 1) return [ebMakeVariant({ [comp[0]]: { x: 0, y: 0 } }, {}, comp[0], 0)];
+  const roots = (wantedRoot && comp.includes(wantedRoot)) ? [wantedRoot] : comp.slice();
+  const dirsInto = v => (ebGender[v] === "M" ? [1, 3, 5, 7] : [0, 2, 4, 6]);
+  const lens = comp.length === 2 ? [C, C + 1] : [C];      // 3 vertices: shortest traces only (4x fewer variants)
+  const ray = (P, k, len) => {
+    const xs = [P.x], ys = [P.y];
+    for (let i = 1; i <= len; i++) { xs.push(P.x + EB_DX[k] * i); ys.push(P.y + EB_DY[k] * i); }
+    return { xs, ys };
+  };
+  const ek = (a, b) => [a, b].sort().join("-");
+  const out = [];
+  const add = (pos, paths, root, rank) => { if (ebSmallValid(pos, paths, C)) out.push(ebMakeVariant(pos, paths, root, rank)); };
+
+  if (comp.length === 2) {
+    for (const r of roots) {
+      const s = comp[0] === r ? comp[1] : comp[0];
+      for (const k of dirsInto(s)) {
+        for (const len of lens) {
+          const t = ray({ x: 0, y: 0 }, k, len);
+          add({ [r]: { x: 0, y: 0 }, [s]: { x: t.xs[len], y: t.ys[len] } },
+            { [ek(r, s)]: { u: r, v: s, bends: 0, xs: t.xs, ys: t.ys } }, r, len - C);
+        }
+      }
+    }
+  } else {
+    const mid = comp.find(v => ebGraph[v].length === 2);
+    const ends = comp.filter(v => v !== mid);
+    for (const r of roots) {
+      for (const k1 of (r === mid ? dirsInto(ends[0]) : dirsInto(mid))) {
+        for (const k2 of (r === mid ? dirsInto(ends[1]) : dirsInto(r === ends[0] ? ends[1] : ends[0]))) {
+          for (const l1 of lens) {
+            for (const l2 of lens) {
+              const O = { x: 0, y: 0 };
+              const pos = { [r]: O }, paths = {};
+              const a = ray(O, k1, l1);
+              if (r === mid) {
+                const b = ray(O, k2, l2);
+                pos[ends[0]] = { x: a.xs[l1], y: a.ys[l1] };
+                pos[ends[1]] = { x: b.xs[l2], y: b.ys[l2] };
+                paths[ek(mid, ends[0])] = { u: mid, v: ends[0], bends: 0, xs: a.xs, ys: a.ys };
+                paths[ek(mid, ends[1])] = { u: mid, v: ends[1], bends: 0, xs: b.xs, ys: b.ys };
+              } else {
+                const z = r === ends[0] ? ends[1] : ends[0];
+                const Y = { x: a.xs[l1], y: a.ys[l1] };
+                const b = ray(Y, k2, l2);
+                pos[mid] = Y;
+                pos[z] = { x: b.xs[l2], y: b.ys[l2] };
+                paths[ek(r, mid)] = { u: r, v: mid, bends: 0, xs: a.xs, ys: a.ys };
+                paths[ek(mid, z)] = { u: mid, v: z, bends: 0, xs: b.xs, ys: b.ys };
+              }
+              add(pos, paths, r, (l1 - C) + (l2 - C));
+            }
+          }
+        }
+      }
+    }
+  }
+  out.sort((a, b) => a.rank - b.rank);
+  const keys = new Set();
+  return out.filter(v => { const k = ebGeomKey(v); if (keys.has(k)) return false; keys.add(k); return true; });
+}
+
+// The board as flat typed arrays (grows on demand): occupied points, pad zones, diagonal slots and a "near" count
+// (occupied points within Chebyshev distance 2), so every test during packing is a single array lookup.
+function EbBoard(C) {
+  this.C = C;
+  this.x0 = -48; this.y0 = -48; this.w = 96; this.h = 96;
+  this.occ = new Uint8Array(this.w * this.h);
+  this.pz = new Uint8Array(this.w * this.h);
+  this.dg = new Uint8Array(this.w * this.h);
+  this.near = new Uint16Array(this.w * this.h);
+  this.bb = null;
+}
+EbBoard.prototype.grow = function (minX, minY, maxX, maxY) {
+  if (minX >= this.x0 && minY >= this.y0 && maxX < this.x0 + this.w && maxY < this.y0 + this.h) return;
+  const nx0 = Math.min(this.x0, minX - 32), ny0 = Math.min(this.y0, minY - 32);
+  const nx1 = Math.max(this.x0 + this.w, maxX + 33), ny1 = Math.max(this.y0 + this.h, maxY + 33);
+  const nw = nx1 - nx0, nh = ny1 - ny0;
+  const copy = (src, T) => {
+    const dst = new T(nw * nh);
+    for (let y = 0; y < this.h; y++) {
+      dst.set(src.subarray(y * this.w, (y + 1) * this.w), (y + this.y0 - ny0) * nw + (this.x0 - nx0));
+    }
+    return dst;
+  };
+  this.occ = copy(this.occ, Uint8Array); this.pz = copy(this.pz, Uint8Array);
+  this.dg = copy(this.dg, Uint8Array); this.near = copy(this.near, Uint16Array);
+  this.x0 = nx0; this.y0 = ny0; this.w = nw; this.h = nh;
+};
+// cells outside the allocated area are empty
+EbBoard.prototype.idx = function (x, y) {
+  const cx = x - this.x0, cy = y - this.y0;
+  return (cx < 0 || cy < 0 || cx >= this.w || cy >= this.h) ? -1 : cy * this.w + cx;
+};
+EbBoard.prototype.legal = function (fp, ox, oy) {
+  const P = fp.pads, T = fp.pts, D = fp.diags;
+  for (let i = 0; i < P.length; i += 2) { const j = this.idx(P[i] + ox, P[i + 1] + oy); if (j >= 0 && this.pz[j]) return false; }
+  for (let i = 0; i < T.length; i += 2) { const j = this.idx(T[i] + ox, T[i + 1] + oy); if (j >= 0 && this.occ[j]) return false; }
+  for (let i = 0; i < D.length; i += 3) {
+    const j = this.idx(D[i] + ox, D[i + 1] + oy);
+    if (j >= 0 && (this.dg[j] & (D[i + 2] ? 1 : 2))) return false;
+  }
+  return true;
+};
+EbBoard.prototype.contact = function (fp, ox, oy) {
+  let c = 0;
+  const T = fp.pts;
+  for (let i = 0; i < T.length; i += 2) { const j = this.idx(T[i] + ox, T[i + 1] + oy); if (j >= 0) c += Math.min(this.near[j], 4); }
+  return c;
+};
+EbBoard.prototype.place = function (v, ox, oy) {
+  const C = this.C, fp = v.fp;
+  this.grow(v.bb.minX + ox - C - 2, v.bb.minY + oy - C - 2, v.bb.maxX + ox + C + 2, v.bb.maxY + oy + C + 2);
+  const P = fp.pads, T = fp.pts, D = fp.diags;
+  for (let i = 0; i < P.length; i += 2) {
+    for (let dx = -(C - 1); dx <= C - 1; dx++) {
+      for (let dy = -(C - 1); dy <= C - 1; dy++) this.pz[this.idx(P[i] + ox + dx, P[i + 1] + oy + dy)] = 1;
+    }
+  }
+  for (let i = 0; i < T.length; i += 2) {
+    const x = T[i] + ox, y = T[i + 1] + oy;
+    this.occ[this.idx(x, y)] = 1;
+    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) this.near[this.idx(x + dx, y + dy)]++;
+  }
+  for (let i = 0; i < D.length; i += 3) this.dg[this.idx(D[i] + ox, D[i + 1] + oy)] |= (D[i + 2] ? 2 : 1);
+  const b = { minX: v.bb.minX + ox, maxX: v.bb.maxX + ox, minY: v.bb.minY + oy, maxY: v.bb.maxY + oy };
+  if (!this.bb) this.bb = b;
+  else {
+    this.bb.minX = Math.min(this.bb.minX, b.minX); this.bb.maxX = Math.max(this.bb.maxX, b.maxX);
+    this.bb.minY = Math.min(this.bb.minY, b.minY); this.bb.maxY = Math.max(this.bb.maxY, b.maxY);
+  }
+};
+
+// Best position over all variants. Score, smaller first: board size max(W, H * aspect), board area, then
+// (nestle only) the variant rank (shortest traces) and the most contact with what is already drawn; ties keep the
+// scan order.
+// A candidate is tested for legality only if it could beat the best one found so far.
+function ebBestPlacement(board, variants, S, nestle) {
+  const C = S.clearance, B = board.bb, eps = 1e-9;
+  if (nestle) {
+    // A variant can only go where its first pad lands on a free pad cell, so the free cells are listed once and
+    // every variant is tried only there: O(free cells x variants) instead of O(board area x variants).
+    // Pass 1: positions completely inside the board (the board does not grow); the shortest traces (lowest rank)
+    // win, then the most contact with what is already drawn.
+    const W0 = B.maxX - B.minX, H0 = B.maxY - B.minY;
+    const inside = [];
+    for (let y = B.minY; y <= B.maxY; y++) {
+      for (let x = B.minX; x <= B.maxX; x++) {
+        const j = board.idx(x, y);
+        if (!board.pz[j] && !board.occ[j]) inside.push(x, y);
+      }
+    }
+    let best = null;
+    for (const v of variants) {
+      const p0x = v.fp.pads[0], p0y = v.fp.pads[1];
+      for (let i = 0; i < inside.length; i += 2) {
+        const ox = inside[i] - p0x, oy = inside[i + 1] - p0y;
+        if (v.bb.minX + ox < B.minX || v.bb.maxX + ox > B.maxX || v.bb.minY + oy < B.minY || v.bb.maxY + oy > B.maxY) continue;
+        if (!board.legal(v.fp, ox, oy)) continue;
+        const contact = board.contact(v.fp, ox, oy);
+        if (best && (v.rank > best.v.rank || (v.rank === best.v.rank && contact <= best.contact))) continue;
+        best = { f: Math.max(W0, H0 * S.aspect), area: (W0 + 1) * (H0 + 1), contact, v, ox, oy };
+      }
+    }
+    if (best) return best;
+
+    // Pass 2: the board has to grow. The grown boxes (one side pushed out by k = 1, 2, ... steps) are tried in order
+    // of the board size they give; in each box only positions that reach into the new strip are tested (the rest
+    // failed in pass 1). The first box with a legal position decides; in it the shortest traces, then the most contact win.
+    let ext = 1;
+    variants.forEach(v => { ext = Math.max(ext, v.bb.maxX - v.bb.minX, v.bb.maxY - v.bb.minY); });
+    const boxes = [];
+    for (let k = 1; k <= ext + C + 1; k++) {
+      boxes.push({ minX: B.minX, maxX: B.maxX + k, minY: B.minY, maxY: B.maxY });
+      boxes.push({ minX: B.minX - k, maxX: B.maxX, minY: B.minY, maxY: B.maxY });
+      boxes.push({ minX: B.minX, maxX: B.maxX, minY: B.minY, maxY: B.maxY + k });
+      boxes.push({ minX: B.minX, maxX: B.maxX, minY: B.minY - k, maxY: B.maxY });
+    }
+    boxes.forEach(b => {
+      const W = b.maxX - b.minX, H = b.maxY - b.minY;
+      b.f = Math.max(W, H * S.aspect); b.area = (W + 1) * (H + 1);
+    });
+    boxes.sort((a, b) => (Math.abs(a.f - b.f) > eps ? a.f - b.f : a.area - b.area));
+    for (const b of boxes) {
+      if (best && (b.f > best.f + eps || b.area > best.area)) break;
+      // free cells of the box near the new strip (within the largest variant extent of it)
+      const sx0 = Math.max(b.minX, (b.minX < B.minX ? b.minX : (b.maxX > B.maxX ? B.maxX - ext : b.minX)));
+      const sx1 = Math.min(b.maxX, (b.maxX > B.maxX ? b.maxX : (b.minX < B.minX ? B.minX + ext : b.maxX)));
+      const sy0 = Math.max(b.minY, (b.minY < B.minY ? b.minY : (b.maxY > B.maxY ? B.maxY - ext : b.minY)));
+      const sy1 = Math.min(b.maxY, (b.maxY > B.maxY ? b.maxY : (b.minY < B.minY ? B.minY + ext : b.maxY)));
+      for (const v of variants) {
+        for (let pi = 0; pi < v.fp.pads.length; pi += 2) {
+          if (pi > 0) break;                                   // anchor on the first pad
+          const p0x = v.fp.pads[pi], p0y = v.fp.pads[pi + 1];
+          for (let y = sy0; y <= sy1; y++) {
+            for (let x = sx0; x <= sx1; x++) {
+              const j = board.idx(x, y);
+              if (j >= 0 && (board.pz[j] || board.occ[j])) continue;
+              const ox = x - p0x, oy = y - p0y;
+              if (v.bb.minX + ox < b.minX || v.bb.maxX + ox > b.maxX || v.bb.minY + oy < b.minY || v.bb.maxY + oy > b.maxY) continue;
+              if (v.bb.minX + ox >= B.minX && v.bb.maxX + ox <= B.maxX && v.bb.minY + oy >= B.minY && v.bb.maxY + oy <= B.maxY) continue;
+              if (!board.legal(v.fp, ox, oy)) continue;
+              const contact = board.contact(v.fp, ox, oy);
+              if (best && b.f > best.f - eps && b.area === best.area &&
+                  (v.rank > best.v.rank || (v.rank === best.v.rank && contact <= best.contact))) continue;
+              best = { f: b.f, area: b.area, contact, v, ox, oy };
+            }
+          }
+        }
+      }
+    }
+    return best;
+  }
+  let best = null;
+  for (const v of variants) {
+    const oxMin = B.minX - v.bb.maxX - C, oxMax = B.maxX - v.bb.minX + C;
+    const oyMin = B.minY - v.bb.maxY - C, oyMax = B.maxY - v.bb.minY + C;
+    for (let oy = oyMin; oy <= oyMax; oy++) {
+      const H = Math.max(B.maxY, v.bb.maxY + oy) - Math.min(B.minY, v.bb.minY + oy);
+      for (let ox = oxMin; ox <= oxMax; ox++) {
+        const W = Math.max(B.maxX, v.bb.maxX + ox) - Math.min(B.minX, v.bb.minX + ox);
+        const f = Math.max(W, H * S.aspect), area = (W + 1) * (H + 1);
+        if (best) {
+          if (f > best.f + eps) continue;
+          if (f > best.f - eps) {
+            if (area > best.area) continue;
+            if (area === best.area && !nestle && v.rank >= best.v.rank) continue;
+          }
+        }
+        if (!board.legal(v.fp, ox, oy)) continue;
+        const contact = nestle ? board.contact(v.fp, ox, oy) : 0;
+        if (best && f > best.f - eps && area === best.area) {
+          if (contact < best.contact || (contact === best.contact && v.rank >= best.v.rank)) continue;
+        }
+        best = { f, area, contact, v, ox, oy };
+      }
+    }
+  }
+  return best;
+}
+
+function ebLayoutForest(S) {
+  const t0 = performance.now();
+  const comps = ebComponents();
+  const wantedRoot = S.wantedRoot ? String(S.wantedRoot).trim().toUpperCase() : "";   // root node of this board (if any)
+  const C = S.clearance;
+
+  // routed trees (>= 4 vertices) share the time budgets in proportion to their size; small trees cost nothing
+  const routedTotal = comps.reduce((s, c) => s + (c.length > EB_SMALL_MAX ? c.length : 0), 0);
+  const items = comps.map(comp => {
+    if (comp.length <= EB_SMALL_MAX) {
+      return { size: comp.length, kind: "small", variants: ebSmallVariants(comp, C, wantedRoot), forced: [] };
+    }
+    const fixed = !!(wantedRoot && comp.includes(wantedRoot));
+    const root = fixed ? wantedRoot : ebTreeCentre(comp);
+    const share = comp.length / routedTotal;
+    const St = Object.assign({}, S, { squeezeMs: S.squeezeMs * share, chooseMs: S.chooseMs * share });
+    const t = ebLayoutTreeBest(comp, root, St, fixed);
+    const v = ebMakeVariant(t.pos, t.paths, t.root, 0);
+    return { size: comp.length, kind: comp.length >= EB_LARGE_MIN ? "large" : "medium", variants: ebDihedralVariants(v), forced: t.forced };
+  });
+
+  // large first (biggest footprint first), then medium, then small (3, 2, 1 vertices)
+  const kindOrder = { large: 0, medium: 1, small: 2 };
+  const fpSize = it => it.variants[0].fp.pts.length;
+  const order = items.map((it, i) => i).sort((a, b) =>
+    (kindOrder[items[a].kind] - kindOrder[items[b].kind]) || (fpSize(items[b]) - fpSize(items[a])) ||
+    (items[b].size - items[a].size) || (a - b));
+
+  const board = new EbBoard(C);
+  const chosen = {};
+  order.forEach(i => {
+    const it = items[i];
+    if (!board.bb) {
+      const v = it.variants[0];
+      board.place(v, 0, 0);
+      chosen[i] = { v, ox: 0, oy: 0 };
+      return;
+    }
+    let best = ebBestPlacement(board, it.variants, S, it.kind !== "large");
+    if (!best) {   // cannot happen (the ring outside the board is free), kept as a safe fallback
+      const v = it.variants[0];
+      best = { v, ox: board.bb.maxX - v.bb.minX + C + 1, oy: board.bb.minY - v.bb.minY };
+    }
+    board.place(best.v, best.ox, best.oy);
+    chosen[i] = best;
+  });
+
+  const margin = 1, B = board.bb;
+  const pos = {}, paths = {}, forced = [], roots = [];
+  items.forEach((it, i) => {
+    const { v } = chosen[i];
+    const ox = chosen[i].ox - B.minX + margin, oy = chosen[i].oy - B.minY + margin;
+    Object.keys(v.pos).forEach(n => { pos[n] = { x: v.pos[n].x + ox, y: v.pos[n].y + oy }; });
+    Object.keys(v.paths).forEach(k => {
+      const p = v.paths[k];
+      paths[k] = { u: p.u, v: p.v, bends: p.bends, xs: p.xs.map(x => x + ox), ys: p.ys.map(y => y + oy) };
+    });
+    forced.push(...it.forced);
+    roots.push(v.root);
+  });
+
+  return {
+    pos, paths, forced, roots,
+    trees: items.length,
+    gridW: (B.maxX - B.minX) + 2 * margin,
+    gridH: (B.maxY - B.minY) + 2 * margin,
+    pitch: S.pitch,
+    clearance: S.clearance,
+    showGrid: S.showGrid,
+    theme: S.theme,
+    ms: performance.now() - t0
+  };
+}
+
+// --- 5. Independent verification of the drawing ---
+function ebVerify(L) {
+  const vertexIssues = [], traceIssues = [], genderIssues = [], marks = [];
+  const padAt = new Map();
+  Object.keys(L.pos).forEach(n => {
+    const k = ebKey(L.pos[n].x, L.pos[n].y);
+    if (padAt.has(k)) {
+      vertexIssues.push(`Pads ${padAt.get(k)} and ${n} are on the same point (${L.pos[n].x}, ${L.pos[n].y}).`);
+      marks.push(L.pos[n]);
+    } else padAt.set(k, n);
+  });
+  const names = Object.keys(L.pos);
+  for (let i = 0; i < names.length; i++) {
+    for (let j = i + 1; j < names.length; j++) {
+      const a = L.pos[names[i]], b = L.pos[names[j]];
+      const d = Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+      if (d > 0 && d < L.clearance) {
+        vertexIssues.push(`Pads ${names[i]} and ${names[j]} are closer than the pad clearance (${d} < ${L.clearance} grid steps).`);
+        marks.push(a, b);
+      }
+    }
+  }
+
+  const tracePt = new Map(), diagUse = new Map();
+  const reported = new Set();
+  Object.keys(L.paths).forEach(ek => {
+    const p = L.paths[ek];
+    const n = p.xs.length - 1;
+    const sx = p.xs[0], sy = p.ys[0], tx = p.xs[n], ty = p.ys[n];
+    if (sx !== L.pos[p.u].x || sy !== L.pos[p.u].y || tx !== L.pos[p.v].x || ty !== L.pos[p.v].y) {
+      traceIssues.push(`Trace ${ek} does not connect the pads of ${p.u} and ${p.v}.`);
+    }
+    for (let i = 1; i <= n; i++) {
+      const dx = p.xs[i] - p.xs[i - 1], dy = p.ys[i] - p.ys[i - 1];
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || (dx === 0 && dy === 0)) {
+        traceIssues.push(`Trace ${ek} has a step that is not a unit octilinear step.`);
+        continue;
+      }
+      if (i < n) {
+        const k = ebKey(p.xs[i], p.ys[i]);
+        if (padAt.has(k)) {
+          traceIssues.push(`Trace ${ek} passes through pad ${padAt.get(k)}.`);
+          marks.push({ x: p.xs[i], y: p.ys[i] });
+        }
+        if (tracePt.has(k) && tracePt.get(k) !== ek) {
+          const pair = [tracePt.get(k), ek].sort().join(" & ");
+          if (!reported.has(pair)) {
+            reported.add(pair);
+            traceIssues.push(`Traces ${pair} overlap at (${p.xs[i]}, ${p.ys[i]}).`);
+            marks.push({ x: p.xs[i], y: p.ys[i] });
+          }
+        } else tracePt.set(k, ek);
+      }
+      if (dx !== 0 && dy !== 0) {
+        const qx = Math.min(p.xs[i], p.xs[i - 1]), qy = Math.min(p.ys[i], p.ys[i - 1]);
+        const type = dx * dy > 0 ? 0 : 1;
+        const base = ebKey(qx, qy) * 2;
+        const other = diagUse.get(base + 1 - type);
+        if (other && other !== ek) {
+          const pair = [other, ek].sort().join(" & ");
+          if (!reported.has("x" + pair)) {
+            reported.add("x" + pair);
+            traceIssues.push(`Traces ${pair} cross at (${qx + 0.5}, ${qy + 0.5}).`);
+            marks.push({ x: qx + 0.5, y: qy + 0.5 });
+          }
+        }
+        diagUse.set(base + type, ek);
+      }
+    }
+    // gender rule on arrival at the child
+    const ax = p.xs[n] - p.xs[n - 1], ay = p.ys[n] - p.ys[n - 1];
+    const diagonal = ax !== 0 && ay !== 0;
+    if (diagonal !== (ebGender[p.v] === "M")) {
+      genderIssues.push(`${p.v} (${ebGender[p.v] === "M" ? "male" : "female"}) is reached by a ${diagonal ? "diagonal" : "horizontal/vertical"} segment.`);
+    }
+  });
+  return { vertexIssues, traceIssues, genderIssues, marks };
+}
+
+function ebComputeStats(L) {
+  let length = 0, bends = 0, straight = 0, doglegs = 0, steps = 0, busSteps = 0;
+  const keys = Object.keys(L.paths);
+  // orientations of the steps touching every grid point, per trace (for the bus statistic)
+  const at = new Map();
+  keys.forEach(k => {
+    const p = L.paths[k];
+    for (let i = 1; i < p.xs.length; i++) {
+      const o = ebDirOf(p.xs[i] - p.xs[i - 1], p.ys[i] - p.ys[i - 1]) & 3;
+      for (const j of [i - 1, i]) {
+        const key = ebKey(p.xs[j], p.ys[j]);
+        if (!at.has(key)) at.set(key, []);
+        at.get(key).push(k + "#" + o);
+      }
+    }
+  });
+  const hasOther = (x, y, k, o) => {
+    const a = at.get(ebKey(x, y));
+    return !!a && a.some(e => e.endsWith("#" + o) && e !== k + "#" + o);
+  };
+  keys.forEach(k => {
+    const p = L.paths[k];
+    for (let i = 1; i < p.xs.length; i++) {
+      const diagStep = p.xs[i] !== p.xs[i - 1] && p.ys[i] !== p.ys[i - 1];
+      length += diagStep ? Math.SQRT2 : 1;
+      steps++;
+      const o = ebDirOf(p.xs[i] - p.xs[i - 1], p.ys[i] - p.ys[i - 1]) & 3;
+      if (EB_SIDE[o].some(([ox, oy]) => hasOther(p.xs[i - 1] + ox, p.ys[i - 1] + oy, k, o) && hasOther(p.xs[i] + ox, p.ys[i] + oy, k, o))) busSteps++;
+    }
+    bends += p.bends;
+    if (p.bends === 0) straight++;
+    if (p.bends === 2) doglegs++;
+  });
+  const V = Object.keys(L.pos).length;
+  const pts = (L.gridW - 1) * (L.gridH - 1);
+  return {
+    V, E: keys.length, trees: L.trees,
+    grid: `${L.gridW - 2} × ${L.gridH - 2}`,
+    px: `${Math.round(L.gridW * L.pitch)} × ${Math.round(L.gridH * L.pitch)} px`,
+    density: V ? (V / pts) : 0,
+    pointsPerVertex: V ? (pts / V) : 0,
+    avgLen: keys.length ? length / keys.length : 0,
+    busShare: steps ? busSteps / steps : 0,
+    bends, straight, doglegs
+  };
+}
+
+
+
+// --- One board: build the sub-forest, lay it out, verify it, and return compact typed arrays ---
+function ebRunBoard(m) {
+  const names = m.names, n = names.length;
+  ebGraph = {};
+  ebGender = {};
+  ebOrder = names.slice();
+  for (let i = 0; i < n; i++) { ebGraph[names[i]] = []; ebGender[names[i]] = m.male[i] ? "M" : "F"; }
+  for (let j = 0; j < m.eu.length; j++) {
+    const a = names[m.eu[j]], b = names[m.ev[j]];
+    ebGraph[a].push(b);
+    ebGraph[b].push(a);
+  }
+  const L = ebLayoutForest(m.S);
+  const chk = ebVerify(L);
+  const st = ebComputeStats(L);
+  const idx = new Map();
+  for (let i = 0; i < n; i++) idx.set(names[i], i);
+  const x = new Int32Array(n), y = new Int32Array(n);
+  for (let i = 0; i < n; i++) { x[i] = L.pos[names[i]].x; y[i] = L.pos[names[i]].y; }
+  const keys = Object.keys(L.paths), P = keys.length;
+  let total = 0;
+  keys.forEach(k => { total += L.paths[k].xs.length; });
+  const pu = new Int32Array(P), pv = new Int32Array(P), pOff = new Int32Array(P + 1), bends = new Uint8Array(P);
+  const pts = new Int32Array(2 * total);
+  let q = 0;
+  keys.forEach((k, j) => {
+    const p = L.paths[k];
+    pu[j] = idx.get(p.u);
+    pv[j] = idx.get(p.v);
+    bends[j] = p.bends;
+    pOff[j] = q;
+    for (let i = 0; i < p.xs.length; i++) { pts[2 * q] = p.xs[i]; pts[2 * q + 1] = p.ys[i]; q++; }
+  });
+  pOff[P] = q;
+  const marks = new Float32Array(2 * chk.marks.length);
+  chk.marks.forEach((mk, i) => { marks[2 * i] = mk.x; marks[2 * i + 1] = mk.y; });
+  const roots = new Int32Array(L.roots.map(r => idx.get(r)));
+  const CAP = 60;
+  return {
+    type: "done", id: m.id, run: m.run,
+    gridW: L.gridW, gridH: L.gridH, trees: L.trees, ms: L.ms,
+    x, y, pu, pv, pOff, pts, bends, roots, marks,
+    forced: L.forced.slice(0, CAP), nForced: L.forced.length,
+    vertexIssues: chk.vertexIssues.slice(0, CAP), nVI: chk.vertexIssues.length,
+    traceIssues: chk.traceIssues.slice(0, CAP), nTI: chk.traceIssues.length,
+    genderIssues: chk.genderIssues.slice(0, CAP), nGI: chk.genderIssues.length,
+    stats: { avgLen: st.avgLen, busShare: st.busShare, bends: st.bends, straight: st.straight, doglegs: st.doglegs, E: st.E, steps: q - P }
+  };
+}
+</script>
+
+<script id="lf-core">
+// Large-forest core (no page access): parsing, random forests, the graph in typed arrays, and the random division
+// into sub-forests of near-equal size.
+
+const LF_MAX_V = 1000000;
+const LF_MAX_ERRORS = 40;
+
+function lfVertexLabel(i) {
+  return String.fromCharCode(65 + (i % 26)) + (i >= 26 ? Math.floor(i / 26) : "");
+}
+
+// Small, fast seeded random generator (mulberry32)
+function lfRng(seed) {
+  let a = (Math.floor(Number(seed) || 0) ^ 0x9e3779b9) >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// --- Adjacency list parser (same format and checks as the single-board page, written for a million lines) ---
+function lfParseList(text) {
+  const errors = [];
+  let extra = 0;
+  const err = msg => { if (errors.length < LF_MAX_ERRORS) errors.push(msg); else extra++; };
+  const map = new Map();
+  const names = [], maleA = [], firstLine = [], headLine = [];
+  const mismatch = new Set();
+  let fr = new Int32Array(4096), to = new Int32Array(4096), dn = 0;
+  let tooMany = false;
+  const nameRe = /^[A-Z0-9_]+$/;
+
+  const pushDir = (a, b) => {
+    if (dn === fr.length) {
+      const f2 = new Int32Array(fr.length * 2), t2 = new Int32Array(fr.length * 2);
+      f2.set(fr); t2.set(to); fr = f2; to = t2;
+    }
+    fr[dn] = a; to[dn] = b; dn++;
+  };
+  const tok = (raw, lineNo) => {
+    let t = raw.trim();
+    if (t === "") { err(`Line ${lineNo}: empty vertex name (check for a stray or doubled comma).`); return -1; }
+    let male = false;
+    if (t.charCodeAt(0) === 42) {
+      male = true;
+      t = t.slice(1).trim();
+      if (t === "") { err(`Line ${lineNo}: "${raw.trim()}" has a * but no vertex name.`); return -1; }
+    }
+    if (t.indexOf("*") !== -1) { err(`Line ${lineNo}: "${raw.trim()}": * may appear only once, at the start of a vertex name.`); return -1; }
+    const name = t.toUpperCase();
+    if (!nameRe.test(name)) { err(`Line ${lineNo}: "${raw.trim()}": vertex names may contain only letters, digits and _.`); return -1; }
+    let id = map.get(name);
+    if (id === undefined) {
+      if (names.length >= LF_MAX_V) { tooMany = true; return -1; }
+      id = names.length;
+      map.set(name, id);
+      names.push(name);
+      maleA.push(male ? 1 : 0);
+      firstLine.push(lineNo);
+      headLine.push(0);
+    } else if (maleA[id] !== (male ? 1 : 0) && !mismatch.has(id)) {
+      mismatch.add(id);
+      err(`Vertex ${name} is ${maleA[id] ? `marked male (*${name})` : "unmarked (female)"} on line ${firstLine[id]} ` +
+        `but ${male ? `marked male (*${name})` : "unmarked (female)"} on line ${lineNo}. Mark a male vertex with * wherever it appears.`);
+    }
+    return id;
+  };
+
+  const L = text.length;
+  let lineNo = 0;
+  for (let pos = 0; pos < L && !tooMany;) {
+    let nl = text.indexOf("\n", pos);
+    if (nl < 0) nl = L;
+    const line = text.slice(pos, nl).trim();
+    pos = nl + 1;
+    lineNo++;
+    if (line === "") continue;
+    const c = line.indexOf(":");
+    if (c < 0 || line.indexOf(":", c + 1) >= 0) {
+      err(`Line ${lineNo} ("${line.length > 60 ? line.slice(0, 60) + "…" : line}"): expected exactly one ":" in the form Vertex:Neighbour,Neighbour,... (use "D:" for an isolated vertex).`);
+      continue;
+    }
+    const head = tok(line.slice(0, c), lineNo);
+    if (head < 0) continue;
+    if (headLine[head]) {
+      err(`Line ${lineNo}: vertex ${names[head]} already has its own line (line ${headLine[head]}); list all its neighbours on one line.`);
+      continue;
+    }
+    headLine[head] = lineNo;
+    const rest = line.slice(c + 1);
+    if (rest.trim() === "") continue;
+    const parts = rest.split(",");
+    for (let i = 0; i < parts.length; i++) {
+      const nb = tok(parts[i], lineNo);
+      if (nb < 0) continue;
+      if (nb === head) { err(`Line ${lineNo}: self-loop ${names[head]}-${names[head]} is not allowed in a forest.`); continue; }
+      pushDir(head, nb);
+    }
+  }
+  if (tooMany) {
+    return { names: [], male: new Uint8Array(0), eu: new Int32Array(0), ev: new Int32Array(0), components: 0,
+      errors: [`The input has more than ${LF_MAX_V.toLocaleString()} vertices; at most ${LF_MAX_V.toLocaleString()} can be drawn.`], extra: 0 };
+  }
+  const N = names.length;
+  if (N === 0) err("The input contains no vertices.");
+
+  // directed neighbour entries as sorted keys u * N + v: duplicates and missing reverse entries in one pass
+  const keys = new Float64Array(dn);
+  for (let i = 0; i < dn; i++) keys[i] = fr[i] * N + to[i];
+  keys.sort();
+  const has = k => {
+    let lo = 0, hi = keys.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (keys[mid] === k) return true;
+      if (keys[mid] < k) lo = mid + 1; else hi = mid - 1;
+    }
+    return false;
+  };
+  let eu = new Int32Array(Math.max(1, dn)), ev = new Int32Array(Math.max(1, dn)), en = 0;
+  for (let i = 0; i < dn; i++) {
+    const k = keys[i];
+    const u = Math.floor(k / N), v = k - u * N;
+    if (i > 0 && keys[i - 1] === k) {
+      err(`Line ${headLine[u]}: neighbour ${names[v]} of ${names[u]} is listed twice.`);
+      continue;
+    }
+    if (headLine[v]) {
+      if (!has(v * N + u)) {
+        err(`Line ${headLine[u]} lists ${names[v]} as a neighbour of ${names[u]}, but the line of ${names[v]} (line ${headLine[v]}) does not list ${names[u]}.`);
+        continue;
+      }
+      if (u > v) continue;          // taken once, from the smaller end
+    }
+    eu[en] = u; ev[en] = v; en++;
+  }
+  eu = eu.slice(0, en);
+  ev = ev.slice(0, en);
+
+  let components = 0;
+  if (errors.length === 0 && extra === 0) {
+    const r = lfForestCheck(N, eu, ev, names);
+    r.errors.forEach(err);
+    components = r.components;
+  }
+  return { names, male: Uint8Array.from(maleA), eu, ev, errors, extra, components };
+}
+
+// No cycles (union-find)
+function lfForestCheck(N, eu, ev, names) {
+  const errors = [];
+  const parent = new Int32Array(N);
+  for (let i = 0; i < N; i++) parent[i] = i;
+  const find = x => {
+    while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+    return x;
+  };
+  let components = N;
+  for (let j = 0; j < eu.length; j++) {
+    const ru = find(eu[j]), rv = find(ev[j]);
+    if (ru === rv) {
+      if (errors.length < LF_MAX_ERRORS) errors.push(`Not a forest: edge ${names[eu[j]]}-${names[ev[j]]} closes a cycle (${names[eu[j]]} and ${names[ev[j]]} are already connected).`);
+    } else {
+      parent[ru] = rv;
+      components--;
+    }
+  }
+  return { errors, components };
+}
+
+// --- Random gendered forest: large trees (family trees, bounded number of children) and small trees of 1..3 ---
+function lfGenerate(o) {
+  const N = Math.max(1, Math.min(LF_MAX_V, Math.floor(o.N)));
+  const rng = lfRng(o.seed);
+  const lmin = Math.max(1, Math.floor(o.lmin)), lmax = Math.max(lmin, Math.floor(o.lmax));
+  const f = Math.min(1, Math.max(0, o.smallShare));
+  const A = (lmin + lmax) / 2;
+  // probability that the next tree is small, so that about a share f of the vertices lies in small trees
+  const qSmall = f >= 1 ? 1 : (f <= 0 ? 0 : (f * A) / (2 * (1 - f) + f * A));
+  const maxKids = Math.max(1, Math.floor(o.maxKids));
+  const names = new Array(N);
+  const male = new Uint8Array(N);
+  const eu = new Int32Array(N), ev = new Int32Array(N);
+  let en = 0, v = 0, trees = 0;
+  const kids = new Uint16Array(Math.max(lmax, 3) + 1);
+  while (v < N) {
+    const small = rng() < qSmall;
+    let size = small ? 1 + Math.floor(rng() * 3) : lmin + Math.floor(rng() * (lmax - lmin + 1));
+    size = Math.min(size, N - v);
+    kids.fill(0, 0, size);
+    for (let j = 1; j < size; j++) {
+      let p = -1;
+      for (let t = 0; t < 24; t++) {
+        const c = Math.floor(rng() * j);
+        if (kids[c] < maxKids) { p = c; break; }
+      }
+      if (p < 0) p = j - 1;          // the newest vertex has no children yet
+      kids[p]++;
+      eu[en] = v + p; ev[en] = v + j; en++;
+    }
+    v += size;
+    trees++;
+  }
+  for (let i = 0; i < N; i++) { names[i] = lfVertexLabel(i); male[i] = rng() < o.maleShare ? 1 : 0; }
+  return { names, male, eu: eu.slice(0, en), ev: ev.slice(0, en), components: trees, errors: [], extra: 0 };
+}
+
+// --- The graph in typed arrays (CSR) with its trees ---
+function lfBuildGraph(names, male, eu, ev) {
+  const N = names.length, E = eu.length;
+  const deg = new Int32Array(N + 1);
+  for (let j = 0; j < E; j++) { deg[eu[j]]++; deg[ev[j]]++; }
+  const adjOff = new Int32Array(N + 1);
+  for (let i = 0; i < N; i++) adjOff[i + 1] = adjOff[i] + deg[i];
+  const fill = adjOff.slice(0, N);
+  const adj = new Int32Array(2 * E);
+  for (let j = 0; j < E; j++) { adj[fill[eu[j]]++] = ev[j]; adj[fill[ev[j]]++] = eu[j]; }
+  // trees in insertion order, vertices of a tree in breadth-first order
+  const seen = new Uint8Array(N);
+  const compVerts = new Int32Array(N);
+  const offs = [0];
+  let q = 0;
+  for (let s = 0; s < N; s++) {
+    if (seen[s]) continue;
+    seen[s] = 1;
+    const start = q;
+    compVerts[q++] = s;
+    for (let i = start; i < q; i++) {
+      const u = compVerts[i];
+      for (let a = adjOff[u]; a < adjOff[u + 1]; a++) {
+        const w = adj[a];
+        if (!seen[w]) { seen[w] = 1; compVerts[q++] = w; }
+      }
+    }
+    offs.push(q);
+  }
+  let maxDeg = 0, maxTree = 0;
+  for (let i = 0; i < N; i++) if (deg[i] > maxDeg) maxDeg = deg[i];
+  for (let c = 0; c + 1 < offs.length; c++) maxTree = Math.max(maxTree, offs[c + 1] - offs[c]);
+  return { N, E, names, male, adjOff, adj, compVerts, compOff: Int32Array.from(offs), nComp: offs.length - 1, maxDeg, maxTree, nameMap: null };
+}
+
+// --- Random division into k sub-forests of near-equal size ---
+//   by "nodes": shuffled trees, largest first (ties stay in random order), each to the board with the fewest vertices
+//   by "trees": shuffled trees dealt round-robin (tree counts differ by at most one)
+function lfPartition(G, o) {
+  const rng = lfRng(o.seed);
+  const T = G.nComp;
+  const size = t => G.compOff[t + 1] - G.compOff[t];
+  const order = new Int32Array(T);
+  for (let i = 0; i < T; i++) order[i] = i;
+  for (let i = T - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const t = order[i]; order[i] = order[j]; order[j] = t;
+  }
+  const k = Math.max(1, Math.min(T, Math.ceil(G.N / Math.max(1, o.perBoard))));
+  const binOf = new Int32Array(T);
+  if (o.mode === "trees") {
+    for (let i = 0; i < T; i++) binOf[order[i]] = i % k;
+  } else {
+    const byDesc = Array.from(order).sort((a, b) => size(b) - size(a));   // stable sort keeps the random tie order
+    // min-heap of boards by (vertices so far, board index)
+    const hl = new Float64Array(k), hb = new Int32Array(k);
+    for (let i = 0; i < k; i++) hb[i] = i;
+    const less = (i, j) => hl[i] < hl[j] || (hl[i] === hl[j] && hb[i] < hb[j]);
+    const swap = (i, j) => { let t = hl[i]; hl[i] = hl[j]; hl[j] = t; t = hb[i]; hb[i] = hb[j]; hb[j] = t; };
+    const down = i => {
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l < k && less(l, m)) m = l;
+        if (r < k && less(r, m)) m = r;
+        if (m === i) return;
+        swap(i, m);
+        i = m;
+      }
+    };
+    for (const t of byDesc) {
+      binOf[t] = hb[0];
+      hl[0] += size(t);
+      down(0);
+    }
+  }
+  // collect the trees of every board (in the shuffled order)
+  const counts = new Int32Array(k), vcounts = new Int32Array(k);
+  for (let i = 0; i < T; i++) { const t = order[i]; counts[binOf[t]]++; vcounts[binOf[t]] += size(t); }
+  const boards = [];
+  for (let b = 0; b < k; b++) boards.push({ id: b, trees: counts[b], V: vcounts[b], E: vcounts[b] - counts[b], verts: new Int32Array(vcounts[b]), fill: 0 });
+  const boardOf = new Int32Array(G.N), localOf = new Int32Array(G.N);
+  for (let i = 0; i < T; i++) {
+    const t = order[i], B = boards[binOf[t]];
+    for (let a = G.compOff[t]; a < G.compOff[t + 1]; a++) {
+      const g = G.compVerts[a];
+      boardOf[g] = B.id;
+      localOf[g] = B.fill;
+      B.verts[B.fill++] = g;
+    }
+  }
+  boards.forEach(B => { delete B.fill; });
+  return { boards, boardOf, localOf };
+}
+
+// The sub-forest of one board as a job for the routing engine
+function lfBuildJob(G, B, localOf) {
+  const V = B.V;
+  const names = new Array(V), male = new Uint8Array(V);
+  const eu = new Int32Array(B.E), ev = new Int32Array(B.E);
+  let en = 0;
+  for (let i = 0; i < V; i++) {
+    const g = B.verts[i];
+    names[i] = G.names[g];
+    male[i] = G.male[g];
+    for (let a = G.adjOff[g]; a < G.adjOff[g + 1]; a++) {
+      const w = G.adj[a];
+      if (g < w) { eu[en] = i; ev[en] = localOf[w]; en++; }
+    }
+  }
+  return { names, male, eu, ev };
+}
+
+if (typeof module !== "undefined") module.exports = { lfParseList, lfGenerate, lfBuildGraph, lfPartition, lfBuildJob, lfVertexLabel, lfRng };
+</script>
+
+<script>
+// Large-forest page: worker pool, grid of boards, canvas viewer with level of detail, overview map, reports.
+
+const LF = {
+  G: null,                 // graph (lfBuildGraph)
+  boards: [], boardOf: null, localOf: null,
+  S: null, run: 0, rootId: -1,
+  pool: [], local: false, localBusy: false, engineLoaded: false,
+  queued: 0, routing: 0, done: 0,
+  cols: 1, rows: 1, colX: null, rowY: null, colW: null, rowH: null, totalW: 0, totalH: 0, gap: 72,
+  est: { ppv: 9, aspect: 1.6, wsum: 0, ppvSum: 0, aspSum: 0 },
+  view: { s: 1, x: 0, y: 0 },
+  userMoved: false, gridDirty: false, drawQueued: false,
+  hover: null, focus: null, focusPending: -1,
+  agg: null, t0: 0, reportTimer: null,
+  pathCache: new Map(), thumbs: 0
+};
+const LF_GENDER_RING = { M: "#1f7fd1", F: "#e0186a" };
+const LF_THEMES = {
+  blue:  { board: "#1b4f97", grid: "#3567ad", outline: "#123d78", trace: "#3e8ee0", shine: "#86c3ff", text: "#d6e7ff" },
+  green: { board: "#159447", grid: "#2bb862", outline: "#0b6a31", trace: "#36c96a", shine: "#7fe3a2", text: "#d8f5df" }
+};
+const $ = id => document.getElementById(id);
+
+function lfSetStatus(text, kind) {
+  const s = $("status");
+  s.textContent = text;
+  s.className = kind || "";
+}
+function lfFmt(n) { return Number(n).toLocaleString("en-US"); }
+function lfNum(id, def, min, max) {
+  let v = parseFloat($(id).value);
+  if (!isFinite(v)) v = def;
+  return Math.min(max, Math.max(min, v));
+}
+
+function lfSettings() {
+  return {
+    pitch: lfNum("gridPitch", 18, 12, 40),
+    maxSeg: Math.round(lfNum("maxSegment", 6, 2, 12)),
+    clearance: Math.round(lfNum("padClearance", 2, 2, 3)),
+    compact: lfNum("compactness", 1.5, 0, 6),
+    aspect: lfNum("boardAspect", 1.6, 0.3, 4),
+    doglegs: $("allowDoglegs").checked,
+    order: $("placementOrder").value,
+    bus: lfNum("busBundling", 0.5, 0, 1.5),
+    squeeze: $("squeezeBoard").checked,
+    squeezeMs: lfNum("squeezeMs", 150, 0, 10000),
+    chooseMs: 0,
+    outward: 0,
+    roomPerVertex: 1.5,
+    roomWeight: 1.0,
+    roomMaxRadius: 2,
+    showGrid: $("showGrid").checked,
+    theme: LF_THEMES[$("boardTheme").value] ? $("boardTheme").value : "blue",
+    wantedRoot: ""
+  };
+}
+
+// ---------------------------------------------------------------- workers
+function lfEngineText() { return $("eb-engine").textContent; }
+
+const LF_WORKER_SHIM = `
+self.onmessage = function (e) {
+  const m = e.data;
+  let r;
+  try { r = ebRunBoard(m); }
+  catch (err) { self.postMessage({ type: "error", id: m.id, run: m.run, message: String((err && err.message) || err) }); return; }
+  self.postMessage(r, [r.x.buffer, r.y.buffer, r.pu.buffer, r.pv.buffer, r.pOff.buffer, r.pts.buffer, r.bends.buffer, r.roots.buffer, r.marks.buffer]);
+};`;
+
+function lfStopPool() {
+  LF.pool.forEach(w => { try { w.worker.terminate(); } catch (e) { /* already gone */ } });
+  LF.pool = [];
+}
+
+function lfStartPool() {
+  lfStopPool();
+  LF.local = false;
+  let n = parseInt($("workerCount").value, 10);
+  if (!(n > 0)) n = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+  let url = null;
+  try {
+    url = URL.createObjectURL(new Blob([lfEngineText() + LF_WORKER_SHIM], { type: "text/javascript" }));
+    for (let i = 0; i < n; i++) {
+      const w = { worker: new Worker(url), busy: false, board: -1 };
+      w.worker.onmessage = e => lfOnResult(w, e.data);
+      w.worker.onerror = e => {
+        e.preventDefault();
+        lfOnResult(w, { type: "error", id: w.board, run: LF.run, message: e.message || "worker error" });
+      };
+      LF.pool.push(w);
+    }
+  } catch (e) {
+    lfStopPool();
+    LF.local = true;
+  }
+  if (LF.local && !LF.engineLoaded) {
+    const s = document.createElement("script");
+    s.textContent = lfEngineText();
+    document.head.appendChild(s);
+    LF.engineLoaded = true;
+  }
+}
+
+function lfJobFor(B) {
+  const job = lfBuildJob(LF.G, B, LF.localOf);
+  const S = Object.assign({}, LF.S);
+  S.wantedRoot = (LF.rootId >= 0 && LF.boardOf[LF.rootId] === B.id) ? LF.G.names[LF.rootId] : "";
+  return { type: "layout", id: B.id, run: LF.run, names: job.names, male: job.male, eu: job.eu, ev: job.ev, S };
+}
+
+// queued board nearest to the centre of the view (ring search over the board grid)
+function lfNextBoard() {
+  if (LF.queued <= 0) return null;
+  const cv = $("boardCanvas");
+  const wx = LF.view.x + cv.clientWidth / 2 / LF.view.s, wy = LF.view.y + cv.clientHeight / 2 / LF.view.s;
+  const c0 = Math.min(LF.cols - 1, Math.max(0, lfIndexAt(LF.colX, LF.cols, wx)));
+  const r0 = Math.min(LF.rows - 1, Math.max(0, lfIndexAt(LF.rowY, LF.rows, wy)));
+  const R = Math.max(LF.cols, LF.rows);
+  for (let rad = 0; rad <= R; rad++) {
+    let best = null, bd = Infinity;
+    for (let r = r0 - rad; r <= r0 + rad; r++) {
+      if (r < 0 || r >= LF.rows) continue;
+      const edgeRow = (r === r0 - rad || r === r0 + rad);
+      for (let c = c0 - rad; c <= c0 + rad; c++) {
+        if (c < 0 || c >= LF.cols) continue;
+        if (!edgeRow && c !== c0 - rad && c !== c0 + rad) continue;
+        const i = r * LF.cols + c;
+        if (i >= LF.boards.length || LF.boards[i].state !== 0) continue;
+        const d = (r - r0) * (r - r0) + (c - c0) * (c - c0);
+        if (d < bd) { bd = d; best = LF.boards[i]; }
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
+function lfPump() {
+  if (!LF.G) return;
+  if (LF.local) {
+    if (LF.localBusy) return;
+    const B = lfNextBoard();
+    if (!B) return;
+    LF.localBusy = true;
+    B.state = 1; LF.queued--; LF.routing++;
+    const run = LF.run;
+    setTimeout(() => {
+      if (run !== LF.run) return;
+      let r;
+      try { r = ebRunBoard(lfJobFor(B)); } catch (e) { r = { type: "error", id: B.id, run, message: String(e && e.message || e) }; }
+      LF.localBusy = false;
+      lfOnResult(null, r);
+    }, 0);
+    return;
+  }
+  for (const w of LF.pool) {
+    if (w.busy) continue;
+    const B = lfNextBoard();
+    if (!B) break;
+    B.state = 1; LF.queued--; LF.routing++;
+    w.busy = true;
+    w.board = B.id;
+    const job = lfJobFor(B);
+    w.worker.postMessage(job, [job.male.buffer, job.eu.buffer, job.ev.buffer]);
+  }
+}
+
+function lfOnResult(w, r) {
+  if (w) { w.busy = false; w.board = -1; }
+  if (!r || r.run !== LF.run) { lfPump(); return; }
+  const B = LF.boards[r.id];
+  if (!B || B.state === 2) { lfPump(); return; }
+  LF.routing--;
+  LF.done++;
+  if (r.type === "error") {
+    B.state = 3;
+    B.error = r.message;
+    LF.agg.errors.push(`Board ${B.id + 1}: routing failed (${r.message}).`);
+  } else {
+    B.state = 2;
+    B.res = r;
+    lfAggregate(B, r);
+  }
+  LF.gridDirty = true;
+  lfProgress();
+  lfScheduleReports();
+  if (LF.focusPending >= 0 && LF.boardOf[LF.focusPending] === B.id && B.state === 2) {
+    const id = LF.focusPending;
+    LF.focusPending = -1;
+    lfFocusVertex(id);
+  } else if (!LF.userMoved && B.id === 0) {
+    lfRecomputeGrid(false);
+    lfFitBoard(0);
+  }
+  lfRequestDraw();
+  lfPump();
+  if (LF.done === LF.boards.length) lfFinished();
+}
+
+// ---------------------------------------------------------------- statistics and reports
+function lfNewAgg() {
+  return { ms: 0, length: 0, steps: 0, busSteps: 0, bends: 0, straight: 0, doglegs: 0, E: 0, area: 0, V: 0,
+    nVI: 0, nTI: 0, nGI: 0, nForced: 0, vi: [], ti: [], gi: [], forced: [], errors: [] };
+}
+
+function lfAggregate(B, r) {
+  const a = LF.agg, st = r.stats;
+  a.ms += r.ms;
+  a.length += st.avgLen * st.E;
+  a.steps += st.steps;
+  a.busSteps += st.busShare * st.steps;
+  a.bends += st.bends;
+  a.straight += st.straight;
+  a.doglegs += st.doglegs;
+  a.E += st.E;
+  a.V += B.V;
+  a.area += (r.gridW - 2) * (r.gridH - 2);
+  const pre = `Board ${B.id + 1}: `;
+  const take = (list, items) => { for (const t of items) { if (list.length >= 300) break; list.push(pre + t); } };
+  a.nVI += r.nVI; take(a.vi, r.vertexIssues);
+  a.nTI += r.nTI; take(a.ti, r.traceIssues);
+  a.nGI += r.nGI; take(a.gi, r.genderIssues);
+  a.nForced += r.nForced; take(a.forced, r.forced);
+  B.issues = r.nVI + r.nTI + r.nGI;
+  // the size estimate of boards that are not routed yet follows the routed ones
+  const e = LF.est;
+  const gw = Math.max(1, r.gridW - 2), gh = Math.max(1, r.gridH - 2);
+  e.wsum += B.V;
+  e.ppvSum += gw * gh;
+  e.aspSum += B.V * (gw / gh);
+  e.ppv = e.ppvSum / e.wsum;
+  e.aspect = Math.min(4, Math.max(0.25, e.aspSum / e.wsum));
+}
+
+function lfProgress() {
+  const k = LF.boards.length;
+  $("progBar").style.width = (k ? (100 * LF.done / k) : 0) + "%";
+  $("progText").textContent = `${lfFmt(LF.done)} / ${lfFmt(k)} boards`;
+  if (LF.done < k && k) {
+    const el = (performance.now() - LF.t0) / 1000;
+    lfSetStatus(`Routing boards in the background: ${lfFmt(LF.done)} of ${lfFmt(k)} done (${lfFmt(LF.agg.V)} vertices) · ` +
+      `${LF.local ? "on the page" : LF.pool.length + " worker thread" + (LF.pool.length === 1 ? "" : "s")} · ${el.toFixed(1)} s. ` +
+      `You can move and zoom meanwhile; boards near the centre of the view go first.`, "busy");
+  }
+}
+
+function lfFinished() {
+  const a = LF.agg, k = LF.boards.length;
+  const problems = a.nVI + a.nTI + a.nGI + a.errors.length;
+  const wall = (performance.now() - LF.t0) / 1000;
+  let text = `All ${lfFmt(k)} board${k === 1 ? "" : "s"} drawn: ${lfFmt(LF.G.N)} vertices, ${lfFmt(LF.G.E)} edges, ${lfFmt(LF.G.nComp)} trees ` +
+    `in a ${LF.rows} × ${LF.cols} grid of boards, ${wall.toFixed(1)} s` +
+    (problems ? `, ${lfFmt(problems)} problem${problems === 1 ? "" : "s"} found (see the lists below).` : ", no collisions.");
+  if (a.nForced) text += ` ${lfFmt(a.nForced)} crowded route${a.nForced === 1 ? "" : "s"} drawn with conflicts.`;
+  lfSetStatus(text, problems ? "bad" : "good");
+  lfReports();
+}
+
+function lfScheduleReports() {
+  if (LF.reportTimer) return;
+  LF.reportTimer = setTimeout(() => { LF.reportTimer = null; lfReports(); }, 400);
+}
+
+function lfFillList(id, counterId, items, total, emptyText) {
+  const ul = $(id);
+  ul.innerHTML = "";
+  $(counterId).textContent = lfFmt(total);
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "ok";
+    li.textContent = emptyText;
+    ul.appendChild(li);
+    return;
+  }
+  items.slice(0, 200).forEach(t => {
+    const li = document.createElement("li");
+    li.textContent = t;
+    ul.appendChild(li);
+  });
+  if (total > Math.min(200, items.length)) {
+    const li = document.createElement("li");
+    li.textContent = `... and ${lfFmt(total - Math.min(200, items.length))} more.`;
+    ul.appendChild(li);
+  }
+}
+
+function lfReports() {
+  const a = LF.agg;
+  if (!a) {
+    lfFillList("vertexIssueList", "n1", [], 0, "None");
+    lfFillList("traceIssueList", "n2", [], 0, "None");
+    lfFillList("genderIssueList", "n3", [], 0, "All arrivals follow the gender rule");
+    $("statsBox").innerHTML = "<em>No drawing yet.</em>";
+    return;
+  }
+  lfFillList("vertexIssueList", "n1", a.vi, a.nVI, "None");
+  lfFillList("traceIssueList", "n2", a.errors.concat(a.ti), a.nTI + a.errors.length, "None");
+  lfFillList("genderIssueList", "n3", a.gi, a.nGI, "All arrivals follow the gender rule");
+
+  const k = LF.boards.length;
+  let vmin = Infinity, vmax = 0, tmin = Infinity, tmax = 0;
+  LF.boards.forEach(B => { vmin = Math.min(vmin, B.V); vmax = Math.max(vmax, B.V); tmin = Math.min(tmin, B.trees); tmax = Math.max(tmax, B.trees); });
+  const pct = n => a.E ? Math.round(100 * n / a.E) + "%" : "-";
+  const wall = (performance.now() - LF.t0) / 1000;
+  $("statsBox").innerHTML =
+    `<table class="stats">` +
+    `<tr><td>Vertices / edges</td><td>${lfFmt(LF.G.N)} / ${lfFmt(LF.G.E)}</td><td>Trees</td><td>${lfFmt(LF.G.nComp)}</td></tr>` +
+    `<tr><td>Boards (routed / total)</td><td>${lfFmt(LF.done)} / ${lfFmt(k)}</td><td>Board grid (rows × columns)</td><td>${LF.rows} × ${LF.cols}</td></tr>` +
+    `<tr><td>Vertices per board</td><td>${lfFmt(vmin)} – ${lfFmt(vmax)}</td><td>Trees per board</td><td>${lfFmt(tmin)} – ${lfFmt(tmax)}</td></tr>` +
+    `<tr><td>Largest tree</td><td>${lfFmt(LF.G.maxTree)}</td><td>Whole picture (px)</td><td>${lfFmt(Math.round(LF.totalW))} × ${lfFmt(Math.round(LF.totalH))}</td></tr>` +
+    `<tr><td>Grid points per vertex</td><td>${a.V ? (a.area / a.V).toFixed(1) : "-"}</td><td>Avg. trace length</td><td>${a.E ? (a.length / a.E).toFixed(2) + " steps" : "-"}</td></tr>` +
+    `<tr><td>Straight traces</td><td>${lfFmt(a.straight)} (${pct(a.straight)})</td><td>Bends (total)</td><td>${lfFmt(a.bends)}</td></tr>` +
+    `<tr><td>Two-bend traces</td><td>${lfFmt(a.doglegs)} (${pct(a.doglegs)})</td><td>Trace steps in buses</td><td>${a.steps ? Math.round(100 * a.busSteps / a.steps) + "%" : "-"}</td></tr>` +
+    `<tr><td>Routing time (all threads)</td><td>${(a.ms / 1000).toFixed(1)} s</td><td>Elapsed</td><td>${wall.toFixed(1)} s</td></tr>` +
+    `</table>`;
+}
+
+// ---------------------------------------------------------------- grid of boards
+function lfBoardDims(B) {
+  const p = LF.S.pitch;
+  if (B.res) return { w: B.res.gridW * p, h: B.res.gridH * p };
+  const area = Math.max(1, B.V * LF.est.ppv);
+  const gw = Math.sqrt(area * LF.est.aspect), gh = area / gw;
+  return { w: (gw + 2) * p, h: (gh + 2) * p };
+}
+
+function lfIndexAt(starts, n, w) {
+  // last index i with starts[i] <= w
+  let lo = 0, hi = n - 1, ans = 0;
+  while (lo <= hi) {
+    const m = (lo + hi) >> 1;
+    if (starts[m] <= w) { ans = m; lo = m + 1; } else hi = m - 1;
+  }
+  return ans;
+}
+
+function lfRecomputeGrid(anchor) {
+  const k = LF.boards.length;
+  if (!k) return;
+  const cv = $("boardCanvas");
+  let keep = null;
+  if (anchor && LF.colX) {
+    const W = cv.clientWidth, H = cv.clientHeight, s = LF.view.s;
+    const wx = LF.view.x + W / 2 / s, wy = LF.view.y + H / 2 / s;
+    const c = lfIndexAt(LF.colX, LF.cols, wx), r = lfIndexAt(LF.rowY, LF.rows, wy);
+    keep = { c, r, fx: (wx - LF.colX[c]) / (LF.colW[c] + LF.gap), fy: (wy - LF.rowY[r]) / (LF.rowH[r] + LF.gap) };
+  }
+  const cols = LF.cols, rows = LF.rows, G = LF.gap;
+  const colW = new Float64Array(cols), rowH = new Float64Array(rows);
+  for (let i = 0; i < k; i++) {
+    const d = lfBoardDims(LF.boards[i]);
+    const c = i % cols, r = Math.floor(i / cols);
+    if (d.w > colW[c]) colW[c] = d.w;
+    if (d.h > rowH[r]) rowH[r] = d.h;
+  }
+  const colX = new Float64Array(cols + 1), rowY = new Float64Array(rows + 1);
+  colX[0] = G; rowY[0] = G;
+  for (let c = 0; c < cols; c++) colX[c + 1] = colX[c] + colW[c] + G;
+  for (let r = 0; r < rows; r++) rowY[r + 1] = rowY[r] + rowH[r] + G;
+  LF.colW = colW; LF.rowH = rowH; LF.colX = colX; LF.rowY = rowY;
+  LF.totalW = colX[cols]; LF.totalH = rowY[rows];
+  LF.gridDirty = false;
+  if (keep) {
+    const W = cv.clientWidth, H = cv.clientHeight, s = LF.view.s;
+    const wx = colX[keep.c] + keep.fx * (colW[keep.c] + G), wy = rowY[keep.r] + keep.fy * (rowH[keep.r] + G);
+    LF.view.x = wx - W / 2 / s;
+    LF.view.y = wy - H / 2 / s;
+  }
+}
+
+function lfBoardRect(i) {
+  const B = LF.boards[i], c = i % LF.cols, r = Math.floor(i / LF.cols);
+  const d = lfBoardDims(B);
+  return { x: LF.colX[c] + (LF.colW[c] - d.w) / 2, y: LF.rowY[r] + (LF.rowH[r] - d.h) / 2, w: d.w, h: d.h };
+}
+
+// ---------------------------------------------------------------- view
+function lfMinScale() {
+  const cv = $("boardCanvas");
+  if (!LF.totalW) return 0.05;
+  return Math.min(0.5, 0.5 * Math.min(cv.clientWidth / LF.totalW, cv.clientHeight / LF.totalH));
+}
+const LF_MAX_SCALE = 6;
+
+function lfClampView() {
+  const cv = $("boardCanvas"), s = LF.view.s;
+  const vw = cv.clientWidth / s, vh = cv.clientHeight / s;
+  const W = Math.max(LF.totalW, 1), H = Math.max(LF.totalH, 1);
+  LF.view.x = Math.min(W - vw * 0.25, Math.max(-vw * 0.75, LF.view.x));
+  LF.view.y = Math.min(H - vh * 0.25, Math.max(-vh * 0.75, LF.view.y));
+}
+
+function lfSetZoom(ns, ax, ay) {
+  const cv = $("boardCanvas");
+  if (ax === undefined) { ax = cv.clientWidth / 2; ay = cv.clientHeight / 2; }
+  const s = LF.view.s;
+  ns = Math.min(LF_MAX_SCALE, Math.max(lfMinScale(), ns));
+  const wx = LF.view.x + ax / s, wy = LF.view.y + ay / s;
+  LF.view.s = ns;
+  LF.view.x = wx - ax / ns;
+  LF.view.y = wy - ay / ns;
+  lfClampView();
+  lfZoomLabel();
+  lfRequestDraw();
+}
+function lfZoomLabel() {
+  const p = LF.view.s * 100;
+  $("zoomLevel").textContent = (p >= 10 ? Math.round(p) : p >= 1 ? p.toFixed(1) : p.toFixed(2)) + "%";
+}
+
+function lfCenterOn(wx, wy, s) {
+  const cv = $("boardCanvas");
+  LF.view.s = Math.min(LF_MAX_SCALE, Math.max(lfMinScale(), s));
+  LF.view.x = wx - cv.clientWidth / 2 / LF.view.s;
+  LF.view.y = wy - cv.clientHeight / 2 / LF.view.s;
+  lfClampView();
+  lfZoomLabel();
+  lfRequestDraw();
+}
+
+function lfFitBoard(i) {
+  if (!LF.boards.length) return;
+  i = Math.max(0, Math.min(LF.boards.length - 1, i));
+  if (LF.gridDirty) lfRecomputeGrid(false);
+  const cv = $("boardCanvas"), R = lfBoardRect(i), G = LF.gap;
+  const s = Math.min(cv.clientWidth / (R.w + G * 1.2), cv.clientHeight / (R.h + G * 1.2), 2);
+  lfCenterOn(R.x + R.w / 2, R.y + R.h / 2 - G * 0.15, s);
+}
+
+function lfFitAll() {
+  if (!LF.boards.length) return;
+  if (LF.gridDirty) lfRecomputeGrid(false);
+  const cv = $("boardCanvas");
+  const s = Math.min(cv.clientWidth / LF.totalW, cv.clientHeight / LF.totalH);
+  lfCenterOn(LF.totalW / 2, LF.totalH / 2, s);
+}
+
+function lfBoardAtView() {
+  const cv = $("boardCanvas"), s = LF.view.s;
+  const wx = LF.view.x + cv.clientWidth / 2 / s, wy = LF.view.y + cv.clientHeight / 2 / s;
+  const c = Math.min(LF.cols - 1, lfIndexAt(LF.colX, LF.cols, wx)), r = Math.min(LF.rows - 1, lfIndexAt(LF.rowY, LF.rows, wy));
+  return Math.min(LF.boards.length - 1, r * LF.cols + c);
+}
+
+function lfFocusVertex(g) {
+  const b = LF.boardOf[g], B = LF.boards[b];
+  LF.focus = { b, l: LF.localOf[g] };
+  if (LF.gridDirty) lfRecomputeGrid(false);
+  if (B.state !== 2) {
+    lfFitBoard(b);
+    LF.focusPending = g;
+    lfSetStatus(`Vertex ${LF.G.names[g]} is on board ${b + 1}, which is being routed now.`, "busy");
+    lfPump();
+    return;
+  }
+  const R = lfBoardRect(b), l = LF.localOf[g], p = LF.S.pitch;
+  lfCenterOn(R.x + B.res.x[l] * p, R.y + B.res.y[l] * p, Math.max(LF.view.s, 28 / p));
+  LF.userMoved = true;
+  lfSetStatus(`Vertex ${LF.G.names[g]} is on board ${b + 1} (highlighted in yellow).`, "good");
+}
+
+// ---------------------------------------------------------------- drawing
+function lfRequestDraw() {
+  if (LF.drawQueued) return;
+  LF.drawQueued = true;
+  requestAnimationFrame(() => { LF.drawQueued = false; lfDraw(); });
+}
+
+function lfResizeCanvas() {
+  const cv = $("boardCanvas"), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(cv.clientWidth * dpr)), h = Math.max(1, Math.round(cv.clientHeight * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const mc = $("miniCanvas");
+  const mw = Math.round(mc.clientWidth * dpr), mh = Math.round(mc.clientHeight * dpr);
+  if (mc.width !== mw || mc.height !== mh) { mc.width = mw; mc.height = mh; }
+  lfRequestDraw();
+}
+
+// Traces of a board as one Path2D in grid units (corner points only), kept in a small LRU cache
+function lfTracePath(B) {
+  const c = LF.pathCache;
+  let p = c.get(B.id);
+  if (p) { c.delete(B.id); c.set(B.id, p); return p; }
+  p = new Path2D();
+  const r = B.res, P = r.pu.length, pts = r.pts;
+  for (let j = 0; j < P; j++) {
+    const a = r.pOff[j], e = r.pOff[j + 1] - 1;
+    p.moveTo(pts[2 * a], pts[2 * a + 1]);
+    for (let i = a + 1; i <= e; i++) {
+      if (i < e) {
+        const d1x = pts[2 * i] - pts[2 * i - 2], d1y = pts[2 * i + 1] - pts[2 * i - 1];
+        const d2x = pts[2 * i + 2] - pts[2 * i], d2y = pts[2 * i + 3] - pts[2 * i + 1];
+        if (d1x === d2x && d1y === d2y) continue;
+      }
+      p.lineTo(pts[2 * i], pts[2 * i + 1]);
+    }
+  }
+  c.set(B.id, p);
+  if (c.size > 500) c.delete(c.keys().next().value);
+  return p;
+}
+
+function lfSubPath(B, list) {
+  const p = new Path2D(), r = B.res, pts = r.pts;
+  list.forEach(j => {
+    const a = r.pOff[j], e = r.pOff[j + 1] - 1;
+    p.moveTo(pts[2 * a], pts[2 * a + 1]);
+    for (let i = a + 1; i <= e; i++) p.lineTo(pts[2 * i], pts[2 * i + 1]);
+  });
+  return p;
+}
+
+// Small cached picture of a board (1 px per grid step) for the far-away view
+function lfThumb(B) {
+  if (B.thumb) return B.thumb;
+  const r = B.res, th = LF_THEMES[LF.S.theme];
+  const sc = Math.min(1.5, 320 / Math.max(r.gridW, r.gridH));
+  const w = Math.max(2, Math.ceil(r.gridW * sc)), h = Math.max(2, Math.ceil(r.gridH * sc));
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = th.board;
+  ctx.fillRect(0, 0, w, h);
+  ctx.setTransform(sc, 0, 0, sc, 0, 0);
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = th.shine;
+  ctx.globalAlpha = 0.85;
+  ctx.lineWidth = Math.max(0.35, 0.8 / sc);
+  ctx.stroke(lfTracePath(B));
+  ctx.globalAlpha = 1;
+  for (const g of ["M", "F"]) {
+    ctx.fillStyle = LF_GENDER_RING[g] === "#1f7fd1" ? "#7cc0ff" : "#ff7fb3";
+    ctx.beginPath();
+    for (let i = 0; i < r.x.length; i++) {
+      if ((LF.G.male[B.verts[i]] ? "M" : "F") !== g) continue;
+      ctx.rect(r.x[i] - 0.5, r.y[i] - 0.5, 1, 1);
+    }
+    ctx.fill();
+  }
+  B.thumb = c;
+  LF.thumbs++;
+  return c;
+}
+
+function lfRoundRect(ctx, x, y, w, h, rad) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, rad);
+  else ctx.rect(x, y, w, h);
+}
+
+// Draws the content of a routed board: (sx, sy) = screen position of its top-left corner, ps = screen px per grid
+// step, cull = visible grid range (or null), hov = hover state
+function lfDrawBoardContent(ctx, B, sx, sy, ps, dpr, cull, hov) {
+  const r = B.res, th = LF_THEMES[LF.S.theme], p = LF.S.pitch;
+  const G = LF.G;
+  ctx.setTransform(dpr * ps, 0, 0, dpr * ps, dpr * sx, dpr * sy);
+  ctx.fillStyle = th.board;
+  lfRoundRect(ctx, 0, 0, r.gridW, r.gridH, 0.5);
+  ctx.fill();
+  const cx0 = cull ? cull.x0 : -1, cx1 = cull ? cull.x1 : r.gridW + 1, cy0 = cull ? cull.y0 : -1, cy1 = cull ? cull.y1 : r.gridH + 1;
+
+  if (LF.S.showGrid && ps >= 6) {
+    ctx.fillStyle = th.grid;
+    const d = 2 / ps;
+    for (let gx = Math.max(1, Math.ceil(cx0)); gx < Math.min(r.gridW, cx1); gx++) {
+      for (let gy = Math.max(1, Math.ceil(cy0)); gy < Math.min(r.gridH, cy1); gy++) ctx.fillRect(gx - d / 2, gy - d / 2, d, d);
+    }
+  }
+
+  const path = lfTracePath(B);
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const hovHere = hov && hov.b === B.id;
+  if (ps < 4) {
+    ctx.strokeStyle = th.trace;
+    ctx.lineWidth = Math.max(0.17, 1.1 / ps);
+    ctx.globalAlpha = hovHere ? 0.45 : 1;
+    ctx.stroke(path);
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.strokeStyle = th.outline; ctx.lineWidth = 0.30; ctx.stroke(path);
+    ctx.strokeStyle = th.trace; ctx.lineWidth = 0.17;
+    ctx.globalAlpha = hovHere ? 0.35 : 1;
+    ctx.stroke(path);
+    ctx.globalAlpha = 1;
+    if (ps >= 8) { ctx.strokeStyle = th.shine; ctx.globalAlpha = hovHere ? 0.15 : 0.45; ctx.lineWidth = 0.05; ctx.stroke(path); ctx.globalAlpha = 1; }
+  }
+  if (hovHere && hov.paths.length) {
+    const hp = lfSubPath(B, hov.paths);
+    ctx.strokeStyle = "#6b4a00"; ctx.lineWidth = Math.max(0.30, 2 / ps); ctx.stroke(hp);
+    ctx.strokeStyle = "#ffd166"; ctx.lineWidth = Math.max(0.17, 1.2 / ps); ctx.stroke(hp);
+    if (ps >= 8) { ctx.strokeStyle = "#fff2c4"; ctx.globalAlpha = 0.9; ctx.lineWidth = 0.05; ctx.stroke(hp); ctx.globalAlpha = 1; }
+  }
+
+  // conflict markers
+  if (r.marks.length) {
+    ctx.strokeStyle = "#ff2d2d";
+    ctx.lineWidth = Math.max(2.5 / p, 1.5 / ps);
+    ctx.beginPath();
+    for (let i = 0; i < r.marks.length; i += 2) { ctx.moveTo(r.marks[i] + 0.6, r.marks[i + 1]); ctx.arc(r.marks[i], r.marks[i + 1], 0.6, 0, Math.PI * 2); }
+    ctx.stroke();
+  }
+
+  // pads
+  const R = 0.36, n = r.x.length;
+  const vis = [];
+  for (let i = 0; i < n; i++) {
+    const x = r.x[i], y = r.y[i];
+    if (x < cx0 - 1 || x > cx1 + 1 || y < cy0 - 1 || y > cy1 + 1) continue;
+    vis.push(i);
+  }
+  const male = i => G.male[B.verts[i]] === 1;
+  if (ps < 4) {
+    for (const g of [true, false]) {
+      ctx.fillStyle = g ? "#4aa3ff" : "#ff4f9a";
+      ctx.beginPath();
+      for (const i of vis) { if (male(i) !== g) continue; ctx.moveTo(r.x[i] + R, r.y[i]); ctx.arc(r.x[i], r.y[i], R, 0, Math.PI * 2); }
+      ctx.fill();
+    }
+  } else {
+    const rw = Math.max(1.6, p * 0.1) / p;
+    const all = new Path2D();
+    for (const i of vis) { all.moveTo(r.x[i] + R, r.y[i]); all.arc(r.x[i], r.y[i], R, 0, Math.PI * 2); }
+    ctx.strokeStyle = "#0b1424"; ctx.globalAlpha = 0.75; ctx.lineWidth = rw + 2 / p; ctx.stroke(all); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#d9dde0"; ctx.fill(all);
+    if (ps >= 8) {
+      ctx.fillStyle = "#ffffff"; ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      for (const i of vis) { ctx.moveTo(r.x[i] - 0.11 + 0.13, r.y[i] - 0.12); ctx.arc(r.x[i] - 0.11, r.y[i] - 0.12, 0.13, 0, Math.PI * 2); }
+      ctx.fill(); ctx.globalAlpha = 1;
+    }
+    for (const g of [true, false]) {
+      ctx.strokeStyle = g ? LF_GENDER_RING.M : LF_GENDER_RING.F;
+      ctx.lineWidth = rw;
+      ctx.beginPath();
+      for (const i of vis) { if (male(i) !== g) continue; ctx.moveTo(r.x[i] + R, r.y[i]); ctx.arc(r.x[i], r.y[i], R, 0, Math.PI * 2); }
+      ctx.stroke();
+    }
+    if (ps >= 6) {
+      ctx.strokeStyle = "#c9d1d6"; ctx.lineWidth = 1.2 / p;
+      ctx.beginPath();
+      for (let q = 0; q < r.roots.length; q++) {
+        const i = r.roots[q], e = R + 0.12;
+        ctx.moveTo(r.x[i] - e, r.y[i] - e); ctx.rect(r.x[i] - e, r.y[i] - e, 2 * e, 2 * e);
+      }
+      ctx.stroke();
+    }
+  }
+  if (hovHere) {
+    ctx.strokeStyle = "#ffd166"; ctx.lineWidth = Math.max(0.12, 1.6 / ps);
+    ctx.beginPath();
+    for (const i of hov.pads) { ctx.moveTo(r.x[i] + R + 0.04, r.y[i]); ctx.arc(r.x[i], r.y[i], R + 0.04, 0, Math.PI * 2); }
+    ctx.stroke();
+  }
+  if (LF.focus && LF.focus.b === B.id) {
+    const i = LF.focus.l;
+    ctx.strokeStyle = "#ffe11a"; ctx.lineWidth = Math.max(0.12, 2 / ps);
+    ctx.beginPath(); ctx.arc(r.x[i], r.y[i], R + 0.22, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // pad names
+  if (ps >= 12) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "#1c2226";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    let lastFs = -1;
+    for (const i of vis) {
+      const name = G.names[B.verts[i]];
+      const fs = Math.min(0.5, (R * 2 * 0.95) / (0.62 * name.length)) * ps;
+      if (fs < 4) continue;
+      if (Math.abs(fs - lastFs) > 0.01) { ctx.font = `bold ${fs.toFixed(2)}px Arial, sans-serif`; lastFs = fs; }
+      ctx.fillText(name, sx + r.x[i] * ps, sy + r.y[i] * ps + fs * 0.04);
+    }
+  }
+}
+
+function lfDraw() {
+  const cv = $("boardCanvas"), ctx = cv.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!LF.boards.length) {
+    ctx.fillStyle = "#93a1c1";
+    ctx.font = "600 15px Segoe UI, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("No boards yet", W / 2, H / 2 - 10);
+    ctx.font = "12.5px Segoe UI, system-ui, sans-serif";
+    ctx.fillStyle = "#66759a";
+    ctx.fillText("Load a forest (adjacency list or file) or generate a random one.", W / 2, H / 2 + 14);
+    lfDrawMini();
+    return;
+  }
+  if (LF.gridDirty) lfRecomputeGrid(true);
+  const s = LF.view.s, vx = LF.view.x, vy = LF.view.y, G = LF.gap, p = LF.S.pitch;
+  const ps = p * s;
+  const th = LF_THEMES[LF.S.theme];
+  const c0 = lfIndexAt(LF.colX, LF.cols, vx - G), c1 = lfIndexAt(LF.colX, LF.cols, vx + W / s);
+  const r0 = lfIndexAt(LF.rowY, LF.rows, vy - G), r1 = lfIndexAt(LF.rowY, LF.rows, vy + H / s);
+  const thumbBudget = performance.now() + 30;
+  let thumbsLeft = false;
+  const fsLabel = Math.min(15, G * s * 0.3);
+
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      const i = r * LF.cols + c;
+      if (i >= LF.boards.length) continue;
+      const B = LF.boards[i], R = lfBoardRect(i);
+      const sx = (R.x - vx) * s, sy = (R.y - vy) * s, sw = R.w * s, sh = R.h * s;
+      if (sx > W || sy > H || sx + sw < -G * s || sy + sh < -G * s) continue;
+
+      // frame (the border that separates the boards)
+      const pad = Math.max(2, 0.5 * p * s), lw = Math.min(4, Math.max(1, 0.2 * p * s));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#101828";
+      lfRoundRect(ctx, sx - pad, sy - pad, sw + 2 * pad, sh + 2 * pad, Math.min(10, pad * 1.4));
+      ctx.fill();
+      ctx.lineWidth = lw;
+      const hovB = LF.hover && LF.hover.b === i;
+      if (B.state === 2) {
+        ctx.setLineDash([]);
+        ctx.strokeStyle = B.issues ? "#ff6b6b" : (hovB ? "#ffd166" : "#f0a54a");
+      } else {
+        ctx.setLineDash([Math.max(3, 6 * s), Math.max(3, 5 * s)]);
+        ctx.strokeStyle = B.state === 1 ? "#2dd4bf" : (B.state === 3 ? "#ff6b6b" : "#4a5a82");
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (fsLabel >= 6.5) {
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = `700 ${fsLabel.toFixed(1)}px Segoe UI, system-ui, sans-serif`;
+        ctx.fillStyle = B.state === 2 ? "#ffbf6b" : "#93a1c1";
+        const tx = sx - pad, ty = sy - pad - Math.max(3, fsLabel * 0.45);
+        const head = `Board ${i + 1}`;
+        ctx.fillText(head, tx, ty);
+        const hw = ctx.measureText(head).width;
+        ctx.font = `500 ${(fsLabel * 0.85).toFixed(1)}px Segoe UI, system-ui, sans-serif`;
+        ctx.fillStyle = "#93a1c1";
+        let info = `  ·  ${lfFmt(B.V)} vertices  ·  ${lfFmt(B.trees)} tree${B.trees === 1 ? "" : "s"}`;
+        if (B.state === 0) info += "  ·  queued";
+        else if (B.state === 1) info += "  ·  routing…";
+        else if (B.state === 3) info += "  ·  failed";
+        ctx.fillText(info, tx + hw, ty);
+        if (B.state === 2 && B.issues) {
+          const iw = ctx.measureText(info).width;
+          ctx.fillStyle = "#ff8f8f";
+          ctx.fillText(`  ·  ${lfFmt(B.issues)} problem${B.issues === 1 ? "" : "s"}`, tx + hw + iw, ty);
+        }
+      }
+
+      if (B.state !== 2) {
+        ctx.fillStyle = th.board;
+        ctx.globalAlpha = 0.22;
+        lfRoundRect(ctx, sx, sy, sw, sh, Math.min(8, 0.5 * ps));
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        if (sw > 90 && sh > 30) {
+          ctx.fillStyle = th.text; ctx.globalAlpha = 0.7;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.font = `600 ${Math.min(16, sh / 6).toFixed(1)}px Segoe UI, system-ui, sans-serif`;
+          ctx.fillText(B.state === 1 ? "routing…" : B.state === 3 ? "routing failed" : "queued", sx + sw / 2, sy + sh / 2);
+          ctx.globalAlpha = 1;
+        }
+        continue;
+      }
+      if (ps < 1.6) {
+        let t = B.thumb;
+        if (!t && performance.now() < thumbBudget) t = lfThumb(B);
+        if (t) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(t, sx, sy, sw, sh);
+        } else {
+          thumbsLeft = true;
+          ctx.fillStyle = th.board;
+          ctx.fillRect(sx, sy, sw, sh);
+        }
+        continue;
+      }
+      const cull = { x0: (vx - R.x) / p - 1, x1: (vx + W / s - R.x) / p + 1, y0: (vy - R.y) / p - 1, y1: (vy + H / s - R.y) / p + 1 };
+      lfDrawBoardContent(ctx, B, sx, sy, ps, dpr, cull, LF.hover);
+    }
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (thumbsLeft) lfRequestDraw();
+  lfDrawMini();
+}
+
+function lfDrawMini() {
+  const wrap = $("miniWrap"), mc = $("miniCanvas");
+  if (wrap.classList.contains("hidden")) return;
+  const ctx = mc.getContext("2d"), dpr = window.devicePixelRatio || 1;
+  const W = mc.clientWidth, H = mc.clientHeight;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, mc.width, mc.height);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!LF.boards.length || !LF.colX) { $("miniInfo").textContent = ""; return; }
+  const m = Math.min(W / LF.totalW, H / LF.totalH);
+  const ox = (W - LF.totalW * m) / 2, oy = (H - LF.totalH * m) / 2;
+  LF.mini = { m, ox, oy };
+  for (let i = 0; i < LF.boards.length; i++) {
+    const B = LF.boards[i], R = lfBoardRect(i);
+    ctx.fillStyle = B.state === 2 ? (B.issues ? "#ff6b6b" : "#f0a54a") : B.state === 1 ? "#2dd4bf" : B.state === 3 ? "#ff6b6b" : "#31416a";
+    ctx.globalAlpha = B.state === 2 ? 0.85 : 0.9;
+    ctx.fillRect(ox + R.x * m, oy + R.y * m, Math.max(0.6, R.w * m), Math.max(0.6, R.h * m));
+  }
+  ctx.globalAlpha = 1;
+  const cv = $("boardCanvas"), s = LF.view.s;
+  const vx = ox + LF.view.x * m, vy = oy + LF.view.y * m, vw = cv.clientWidth / s * m, vh = cv.clientHeight / s * m;
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
+  ctx.strokeRect(Math.max(0.75, vx), Math.max(0.75, vy), Math.min(W - 1.5, Math.max(3, vw)), Math.min(H - 1.5, Math.max(3, vh)));
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  ctx.fillRect(vx, vy, Math.max(3, vw), Math.max(3, vh));
+  $("miniInfo").textContent = `${LF.rows} × ${LF.cols}`;
+}
+
+// ---------------------------------------------------------------- hover
+function lfPick(clientX, clientY) {
+  if (!LF.boards.length || !LF.colX) return null;
+  const cv = $("boardCanvas"), rc = cv.getBoundingClientRect(), s = LF.view.s;
+  const wx = LF.view.x + (clientX - rc.left) / s, wy = LF.view.y + (clientY - rc.top) / s;
+  const c = lfIndexAt(LF.colX, LF.cols, wx), r = lfIndexAt(LF.rowY, LF.rows, wy);
+  if (c >= LF.cols || r >= LF.rows) return null;
+  const i = r * LF.cols + c;
+  if (i >= LF.boards.length) return null;
+  const B = LF.boards[i], R = lfBoardRect(i);
+  if (wx < R.x || wx > R.x + R.w || wy < R.y || wy > R.y + R.h) return { b: i, l: -1 };
+  if (B.state !== 2 || LF.S.pitch * s < 1.6) return { b: i, l: -1 };
+  const p = LF.S.pitch, gx = (wx - R.x) / p, gy = (wy - R.y) / p;
+  const ix = Math.round(gx), iy = Math.round(gy);
+  if ((gx - ix) ** 2 + (gy - iy) ** 2 > 0.45 * 0.45) return { b: i, l: -1 };
+  if (!B.padMap) {
+    B.padMap = new Map();
+    for (let q = 0; q < B.res.x.length; q++) B.padMap.set(B.res.x[q] * 131072 + B.res.y[q], q);
+  }
+  const l = B.padMap.get(ix * 131072 + iy);
+  return { b: i, l: l === undefined ? -1 : l };
+}
+
+function lfHover(e) {
+  const tip = $("tip");
+  const hit = lfPick(e.clientX, e.clientY);
+  const prev = LF.hover;
+  if (!hit || hit.l < 0) {
+    if (prev && prev.l >= 0) { tip.classList.remove("on"); }
+    const nb = hit ? hit.b : -1;
+    if (!prev || prev.l >= 0 || prev.b !== nb) { LF.hover = hit ? { b: hit.b, l: -1, paths: [], pads: [] } : null; lfRequestDraw(); }
+    return;
+  }
+  if (!prev || prev.b !== hit.b || prev.l !== hit.l) {
+    const B = LF.boards[hit.b], r = B.res, l = hit.l;
+    const paths = [], pads = [l];
+    let parent = -1;
+    for (let j = 0; j < r.pu.length; j++) {
+      if (r.pu[j] === l) { paths.push(j); pads.push(r.pv[j]); }
+      else if (r.pv[j] === l) { paths.push(j); pads.push(r.pu[j]); parent = r.pu[j]; }
+    }
+    LF.hover = { b: hit.b, l, paths, pads };
+    const G = LF.G, name = i => G.names[B.verts[i]];
+    const male = G.male[B.verts[l]] === 1;
+    const nbrs = pads.slice(1).map(name).sort();
+    const kids = nbrs.length - (parent >= 0 ? 1 : 0);
+    let isRoot = false;
+    for (let q = 0; q < r.roots.length; q++) if (r.roots[q] === l) isRoot = true;
+    const shown = nbrs.length > 14 ? nbrs.slice(0, 14).join(", ") + ", …" : nbrs.join(", ");
+    tip.innerHTML =
+      `<b>${name(l)}</b> <span style="color:${male ? "#4aa3ff" : "#ff4f9a"}">${male ? "male" : "female"}</span>` +
+      (isRoot ? ` <span class="k">· root</span>` : "") +
+      `<div class="k">board ${hit.b + 1}${parent >= 0 ? ` · parent <b style="font-size:12.5px;color:#e6ecf8">${name(parent)}</b>` : ""} · ${kids} child${kids === 1 ? "" : "ren"}</div>` +
+      (nbrs.length ? `<div class="k">connected to ${shown}</div>` : "");
+    tip.classList.add("on");
+    lfRequestDraw();
+  }
+  const pad = 14, rr = tip.getBoundingClientRect();
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + rr.width > window.innerWidth - 8) x = e.clientX - rr.width - pad;
+  if (y + rr.height > window.innerHeight - 8) y = e.clientY - rr.height - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+
+function lfClearHover() {
+  $("tip").classList.remove("on");
+  if (LF.hover) { LF.hover = null; lfRequestDraw(); }
+}
+
+// ---------------------------------------------------------------- run
+function lfChooseCols(k) {
+  const want = Math.round(lfNum("boardsPerRow", 0, 0, 2000));
+  if (want > 0) return Math.min(want, k);
+  const cv = $("boardCanvas");
+  const winAspect = Math.max(0.3, Math.min(4, cv.clientWidth / Math.max(1, cv.clientHeight)));
+  return Math.max(1, Math.min(k, Math.round(Math.sqrt(k * winAspect / LF.est.aspect))));
+}
+
+function lfStart(message) {
+  LF.run++;
+  lfStopPool();
+  LF.pathCache.clear();
+  LF.hover = null; LF.focus = null; LF.focusPending = -1;
+  LF.userMoved = false;
+  if (!LF.G || !LF.G.N) {
+    LF.boards = []; LF.colX = null; LF.agg = null; LF.totalW = LF.totalH = 0;
+    $("progBar").style.width = "0%"; $("progText").textContent = "0 / 0 boards";
+    lfReports();
+    lfRequestDraw();
+    lfSetStatus(message || "Load a forest (adjacency list or file) or generate a random one.");
+    return;
+  }
+  LF.S = lfSettings();
+  LF.gap = Math.max(4 * LF.S.pitch, 64);
+  const rootName = $("rootNode").value.trim().toUpperCase();
+  LF.rootId = -1;
+  if (rootName) {
+    lfEnsureNameMap();
+    const id = LF.G.nameMap.get(rootName);
+    if (id === undefined) { $("rootNode").value = ""; } else LF.rootId = id;
+  }
+  const part = lfPartition(LF.G, { perBoard: Math.round(lfNum("perBoard", 400, 10, 20000)), mode: $("balanceBy").value, seed: lfNum("partSeed", 1, -1e9, 1e9) });
+  LF.boards = part.boards;
+  LF.boardOf = part.boardOf;
+  LF.localOf = part.localOf;
+  LF.boards.forEach(B => { B.state = 0; B.res = null; B.thumb = null; B.padMap = null; B.issues = 0; });
+  LF.queued = LF.boards.length; LF.routing = 0; LF.done = 0;
+  LF.est = { ppv: LF.S.clearance === 3 ? 16 : 9, aspect: LF.S.aspect, wsum: 0, ppvSum: 0, aspSum: 0 };
+  LF.cols = lfChooseCols(LF.boards.length);
+  LF.rows = Math.ceil(LF.boards.length / LF.cols);
+  LF.agg = lfNewAgg();
+  LF.t0 = performance.now();
+  lfRecomputeGrid(false);
+  lfFitBoard(0);
+  lfStartPool();
+  lfProgress();
+  lfReports();
+  let note = "";
+  if (LF.G.maxTree > 5000) note = ` The largest tree has ${lfFmt(LF.G.maxTree)} vertices and is routed on one board on its own; that board takes long.`;
+  if (LF.G.maxDeg > 8) note += ` Some vertex has ${LF.G.maxDeg} edges; a pad has only 8 directions, so conflicts are reported there.`;
+  if (message) lfSetStatus(message + ` Divided into ${lfFmt(LF.boards.length)} sub-forests; routing starts…` + note, "busy");
+  lfPump();
+}
+
+function lfEnsureNameMap() {
+  if (LF.G.nameMap) return;
+  const m = new Map();
+  for (let i = 0; i < LF.G.N; i++) m.set(LF.G.names[i], i);
+  LF.G.nameMap = m;
+}
+
+function lfLoad(parsed, source) {
+  if (parsed.errors.length) {
+    const shown = parsed.errors.slice(0, 12).map(e => " • " + e).join("\n");
+    const total = parsed.errors.length + (parsed.extra || 0);
+    const more = total > 12 ? `\n ... and ${total - 12} more.` : "";
+    alert(`${source} rejected (${total} problem${total === 1 ? "" : "s"}):\n${shown}${more}\n\nThe current graph was not changed.`);
+    lfSetStatus(`${source} rejected: ${parsed.errors[0]}${total > 1 ? ` (+${total - 1} more)` : ""}`, "bad");
+    return;
+  }
+  const G = lfBuildGraph(parsed.names, parsed.male, parsed.eu, parsed.ev);
+  if (parsed.nameMap) G.nameMap = parsed.nameMap;
+  LF.G = G;
+  let males = 0;
+  for (let i = 0; i < G.N; i++) males += G.male[i];
+  lfStart(`Forest loaded from ${source}: ${lfFmt(G.N)} vertices, ${lfFmt(G.E)} edges, ${lfFmt(G.nComp)} tree${G.nComp === 1 ? "" : "s"} ` +
+    `(${lfFmt(males)} male, ${lfFmt(G.N - males)} female).`);
+}
+
+function lfLater(text, fn) {
+  lfSetStatus(text, "busy");
+  setTimeout(fn, 30);
+}
+
+function lfFromText(text, source) {
+  lfLater(`Reading ${source}…`, () => {
+    const t0 = performance.now();
+    const parsed = lfParseList(text);
+    if (!parsed.errors.length) {
+      parsed.nameMap = null;
+    }
+    lfLoad(parsed, source);
+    console.log(`parsed ${source} in ${Math.round(performance.now() - t0)} ms`);
+  });
+}
+
+function lfGenerateNow() {
+  const o = {
+    N: lfNum("genN", 100000, 1, 1000000), maleShare: lfNum("genMale", 0.5, 0, 1),
+    lmin: lfNum("genLmin", 9, 1, 100000), lmax: lfNum("genLmax", 60, 1, 100000),
+    smallShare: lfNum("genSmall", 0.25, 0, 1), maxKids: lfNum("genKids", 4, 1, 7), seed: lfNum("genSeed", 7, -1e9, 1e9)
+  };
+  lfLater(`Generating a random forest of ${lfFmt(o.N)} vertices…`, () => lfLoad(lfGenerate(o), "the random generator"));
+}
+
+function lfRandomizeGenders() {
+  if (!LF.G) { alert("Nothing to randomize: load or generate a forest first."); return; }
+  let m = 0;
+  for (let i = 0; i < LF.G.N; i++) { LF.G.male[i] = Math.random() < 0.5 ? 1 : 0; m += LF.G.male[i]; }
+  lfStart(`Randomized genders: ${lfFmt(m)} male, ${lfFmt(LF.G.N - m)} female.`);
+}
+
+function lfExportList() {
+  const G = LF.G;
+  if (!G) { alert("Nothing to export yet."); return; }
+  const mark = i => (G.male[i] ? "*" : "") + G.names[i];
+  const chunks = [];
+  let buf = [];
+  for (let i = 0; i < G.N; i++) {
+    const nb = [];
+    for (let a = G.adjOff[i]; a < G.adjOff[i + 1]; a++) nb.push(mark(G.adj[a]));
+    buf.push(mark(i) + ":" + nb.join(","));
+    if (buf.length === 20000) { chunks.push(buf.join("\n") + "\n"); buf = []; }
+  }
+  if (buf.length) chunks.push(buf.join("\n") + "\n");
+  const url = URL.createObjectURL(new Blob(chunks, { type: "text/plain" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = "forest_list.txt";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function lfDownloadCanvas(c, name) {
+  const a = document.createElement("a");
+  a.download = name;
+  a.href = c.toDataURL("image/jpeg", 0.95);
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function lfSaveView() {
+  if (!LF.boards.length) { alert("Nothing to save yet."); return; }
+  lfDraw();
+  const cv = $("boardCanvas");
+  const c = document.createElement("canvas");
+  c.width = cv.width; c.height = cv.height;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#0a0f1d";
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(cv, 0, 0);
+  lfDownloadCanvas(c, `electric_map_view_${Date.now()}.jpg`);
+}
+
+function lfSaveBoard() {
+  const i = Math.round(lfNum("saveBoardNo", 1, 1, Math.max(1, LF.boards.length))) - 1;
+  const B = LF.boards[i];
+  if (!B) { alert("Nothing to save yet."); return; }
+  if (B.state !== 2) { alert(`Board ${i + 1} is not routed yet.`); return; }
+  const r = B.res, p = LF.S.pitch;
+  const ps = Math.min(2 * p, 12000 / Math.max(r.gridW, r.gridH));
+  const m = Math.round(ps * 1.2), top = Math.round(Math.max(24, ps * 1.6));
+  const c = document.createElement("canvas");
+  c.width = Math.ceil(r.gridW * ps) + 2 * m;
+  c.height = Math.ceil(r.gridH * ps) + m + top;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#101828";
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.strokeStyle = "#f0a54a";
+  ctx.lineWidth = Math.max(2, ps * 0.2);
+  ctx.strokeRect(m * 0.5, top - m * 0.5, c.width - m, c.height - top);
+  ctx.fillStyle = "#ffbf6b";
+  ctx.font = `700 ${Math.round(top * 0.45)}px Segoe UI, system-ui, sans-serif`;
+  ctx.textBaseline = "middle";
+  ctx.fillText(`Board ${i + 1} · ${lfFmt(B.V)} vertices · ${lfFmt(B.trees)} trees`, m * 0.5, (top - m * 0.5) / 2);
+  lfDrawBoardContent(ctx, B, m, top, ps, 1, null, null);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  lfDownloadCanvas(c, `electric_map_board_${i + 1}.jpg`);
+}
+
+// ---------------------------------------------------------------- page set-up
+function lfInit() {
+  const wc = $("workerCount");
+  const auto = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+  wc.innerHTML = `<option value="0">Auto (${auto})</option>` + [1, 2, 3, 4, 6, 8, 12, 16].map(n => `<option value="${n}">${n}</option>`).join("");
+
+  // mode switch
+  $("modeSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-mode]");
+    if (!b) return;
+    $("modeSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    $("listMode").style.display = b.dataset.mode === "list" ? "block" : "none";
+    $("genMode").style.display = b.dataset.mode === "gen" ? "block" : "none";
+  });
+
+  $("showListGraphBtn").onclick = () => lfFromText($("listInput").value, "adjacency list");
+  $("importListBtn").onclick = () => $("importListFile").click();
+  $("importListFile").onchange = () => {
+    const f = $("importListFile").files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = e => {
+      const text = e.target.result;
+      if (text.length <= 200000) $("listInput").value = text;
+      else $("listInput").value = "";
+      $("importListFile").value = "";
+      lfFromText(text, `file ${f.name} (${(f.size / 1048576).toFixed(1)} MB)`);
+    };
+    lfSetStatus(`Reading file ${f.name}…`, "busy");
+    rd.readAsText(f);
+  };
+  $("generateBtn").onclick = lfGenerateNow;
+  $("exportListBtn").onclick = lfExportList;
+  $("clearBtn").onclick = () => { LF.G = null; $("listInput").value = ""; $("rootNode").value = ""; lfStart("Graph cleared."); };
+  $("runLayoutBtn").onclick = () => { if (LF.G) lfStart("Layout recomputed with the current settings."); };
+  $("randomizeGendersBtn").onclick = lfRandomizeGenders;
+  $("saveViewBtn").onclick = lfSaveView;
+  $("saveBoardBtn").onclick = lfSaveBoard;
+
+  // display-only settings
+  $("showGrid").onchange = () => { if (LF.S) { LF.S.showGrid = $("showGrid").checked; lfRequestDraw(); } };
+  $("boardTheme").onchange = () => {
+    if (LF.S) { LF.S.theme = $("boardTheme").value; LF.boards.forEach(B => { B.thumb = null; }); lfRequestDraw(); }
+  };
+  $("showMini").onchange = () => { $("miniWrap").classList.toggle("hidden", !$("showMini").checked); lfResizeCanvas(); };
+
+  // toolbar
+  $("zoomInBtn").onclick = () => { LF.userMoved = true; lfSetZoom(LF.view.s * 1.25); };
+  $("zoomOutBtn").onclick = () => { LF.userMoved = true; lfSetZoom(LF.view.s / 1.25); };
+  $("zoomResetBtn").onclick = () => { LF.userMoved = true; lfSetZoom(1); };
+  $("fitFirstBtn").onclick = () => { LF.userMoved = true; if (LF.boards.length) lfFitBoard(lfBoardAtView()); };
+  $("fitAllBtn").onclick = () => { LF.userMoved = true; lfFitAll(); };
+  const gotoBoard = () => {
+    if (!LF.boards.length) return;
+    const n = Math.round(lfNum("gotoBoard", 1, 1, LF.boards.length));
+    $("gotoBoard").value = n;
+    LF.userMoved = true;
+    lfFitBoard(n - 1);
+    lfPump();
+  };
+  $("gotoBoardBtn").onclick = gotoBoard;
+  $("gotoBoard").onkeydown = e => { if (e.key === "Enter") gotoBoard(); };
+  const findVertex = () => {
+    if (!LF.G) return;
+    const name = $("findVertex").value.trim().replace(/^\*/, "").toUpperCase();
+    if (!name) return;
+    lfEnsureNameMap();
+    const id = LF.G.nameMap.get(name);
+    if (id === undefined) { lfSetStatus(`There is no vertex named ${name}.`, "bad"); return; }
+    lfFocusVertex(id);
+  };
+  $("findVertexBtn").onclick = findVertex;
+  $("findVertex").onkeydown = e => { if (e.key === "Enter") findVertex(); };
+
+  // canvas interaction: drag to move, wheel to scroll, ctrl + wheel / pinch to zoom
+  const win = $("boardWindow"), cv = $("boardCanvas");
+  const ptrs = new Map();
+  let drag = null, pinch = null, moved = 0;
+  const local = e => { const rc = cv.getBoundingClientRect(); return { x: e.clientX - rc.left, y: e.clientY - rc.top }; };
+  cv.addEventListener("pointerdown", e => {
+    cv.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, local(e));
+    if (ptrs.size === 1) { drag = { x: e.clientX, y: e.clientY, vx: LF.view.x, vy: LF.view.y }; moved = 0; win.classList.add("dragging"); }
+    if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: LF.view.s };
+      drag = null;
+    }
+  });
+  cv.addEventListener("pointermove", e => {
+    if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, local(e));
+    if (pinch && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      LF.userMoved = true;
+      lfSetZoom(pinch.s * d / Math.max(1, pinch.d), (a.x + b.x) / 2, (a.y + b.y) / 2);
+      return;
+    }
+    if (drag) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
+      if (moved > 2) {
+        LF.userMoved = true;
+        LF.view.x = drag.vx - dx / LF.view.s;
+        LF.view.y = drag.vy - dy / LF.view.s;
+        lfClampView();
+        lfClearHover();
+        lfRequestDraw();
+      }
+      return;
+    }
+    lfHover(e);
+  });
+  const up = e => {
+    ptrs.delete(e.pointerId);
+    if (cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (ptrs.size === 0) {
+      if (drag && moved > 2) lfPump();
+      drag = null;
+      win.classList.remove("dragging");
+    }
+  };
+  cv.addEventListener("pointerup", up);
+  cv.addEventListener("pointercancel", up);
+  cv.addEventListener("pointerleave", () => { if (!drag) lfClearHover(); });
+  cv.addEventListener("wheel", e => {
+    e.preventDefault();
+    let dx = e.deltaX, dy = e.deltaY;
+    if (e.deltaMode === 1) { dx *= 16; dy *= 16; } else if (e.deltaMode === 2) { dx *= 400; dy *= 400; }
+    LF.userMoved = true;
+    if (e.ctrlKey || e.metaKey) {
+      const a = local(e);
+      lfSetZoom(LF.view.s * Math.exp(-Math.max(-50, Math.min(50, dy)) * 0.01), a.x, a.y);
+    } else {
+      if (e.shiftKey && dx === 0) { dx = dy; dy = 0; }
+      LF.view.x += dx / LF.view.s;
+      LF.view.y += dy / LF.view.s;
+      lfClampView();
+      lfRequestDraw();
+    }
+    lfClearHover();
+    clearTimeout(LF.wheelTimer);
+    LF.wheelTimer = setTimeout(lfPump, 150);
+  }, { passive: false });
+  let g0 = 1;
+  cv.addEventListener("gesturestart", e => { e.preventDefault(); g0 = LF.view.s; });
+  cv.addEventListener("gesturechange", e => { e.preventDefault(); const a = local(e); LF.userMoved = true; lfSetZoom(g0 * e.scale, a.x, a.y); });
+  cv.addEventListener("gestureend", e => e.preventDefault());
+  cv.addEventListener("dblclick", e => { const a = local(e); LF.userMoved = true; lfSetZoom(LF.view.s * 2, a.x, a.y); });
+
+  // overview map: click or drag to jump
+  const mc = $("miniCanvas");
+  let miniDrag = false;
+  const miniJump = e => {
+    if (!LF.mini || !LF.boards.length) return;
+    const rc = mc.getBoundingClientRect();
+    const wx = (e.clientX - rc.left - LF.mini.ox) / LF.mini.m, wy = (e.clientY - rc.top - LF.mini.oy) / LF.mini.m;
+    LF.userMoved = true;
+    lfCenterOn(wx, wy, LF.view.s);
+  };
+  mc.addEventListener("pointerdown", e => { e.stopPropagation(); miniDrag = true; mc.setPointerCapture(e.pointerId); miniJump(e); });
+  mc.addEventListener("pointermove", e => { if (miniDrag) miniJump(e); });
+  mc.addEventListener("pointerup", e => { miniDrag = false; if (mc.hasPointerCapture(e.pointerId)) mc.releasePointerCapture(e.pointerId); lfPump(); });
+  $("miniWrap").addEventListener("wheel", e => e.stopPropagation());
+
+  // resize handle and window size
+  const handle = $("boardResizeHandle");
+  let hy = 0, hh = 0, hd = false;
+  handle.addEventListener("pointerdown", e => { hd = true; hy = e.clientY; hh = win.offsetHeight; handle.setPointerCapture(e.pointerId); e.preventDefault(); });
+  handle.addEventListener("pointermove", e => { if (hd) win.style.height = Math.max(200, hh + e.clientY - hy) + "px"; });
+  const hstop = e => { hd = false; if (handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId); };
+  handle.addEventListener("pointerup", hstop);
+  handle.addEventListener("pointercancel", hstop);
+  handle.addEventListener("dblclick", () => { win.style.height = Math.max(320, window.innerHeight - 160) + "px"; });
+  win.style.height = Math.max(420, Math.min(760, window.innerHeight - 220)) + "px";
+  if (window.ResizeObserver) new ResizeObserver(lfResizeCanvas).observe(win);
+  window.addEventListener("resize", lfResizeCanvas);
+  lfResizeCanvas();
+
+  // start with a generated example so the page opens with boards to look at
+  $("genN").value = 20000;
+  lfGenerateNow();
+  $("genN").value = 100000;
+}
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", lfInit);
+else lfInit();
+</script>
+</body>
+</html>
