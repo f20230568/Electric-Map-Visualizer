@@ -753,9 +753,6 @@ function ebLayoutTree(comp, root, S) {
     const P = pos[u];
     const wantEven = ebGender[v] !== "M";
     const kids = children[v].length;
-    const want = size[v] - 1;
-    const roomRadius = Math.min(S.roomMaxRadius, Math.max(2, Math.ceil(Math.sqrt(size[v]) * 0.9)));
-    const roomWant = Math.min(want * S.roomPerVertex, ((2 * roomRadius + 1) ** 2 - 1) * 0.85);
     let best = null;
 
     // Reservation: a trace may not take the last free directions of a pad whose children are still waiting
@@ -789,7 +786,7 @@ function ebLayoutTree(comp, root, S) {
       }
     });
     // per end point caches of the look-ahead (they depend only on the committed drawing)
-    const endCache = new Map();
+    const endCache = new Map(), landEnd = new Map();
 
     const xs = [], ys = [];          // current candidate path (grid points, starting at P)
     const corners = [];              // indices of bend points
@@ -812,17 +809,31 @@ function ebLayoutTree(comp, root, S) {
       return forcedMode ? hit : -1;
     }
 
-    function evaluate(finalDir, d1, bends) {
+    // Cost of a candidate (smaller is better):
+    //   C = length + 0.7 * bends + compactness * (growth of the box half perimeter) - bus * (parallel steps)
+    //       + 60 * (children of v that would find no exit at the new pad: a free direction AND a free landing point)
+    // In forced mode candidates are compared by their number of conflicts first, then by C.
+    function evaluate(finalDir, bends) {
       const n = xs.length - 1;
       const ex = xs[n], ey = ys[n];
       const ekey = ebKey(ex, ey);
-      // end point legal? (cached; null = not legal)
-      let ec = endCache.get(ekey);
-      if (ec === undefined) {
-        ec = (trace.has(ekey) || padTooClose(ex, ey)) ? null : { nb: null, room: 0 };
-        endCache.set(ekey, ec);
+      // end point legal? (cached; null = not legal, otherwise the free neighbours of the end point)
+      let nb = endCache.get(ekey);
+      if (nb === undefined) {
+        nb = null;
+        if (!trace.has(ekey) && !padTooClose(ex, ey)) {
+          nb = [];
+          for (let k = 0; k < 8; k++) {
+            const qx = ex + EB_DX[k], qy = ey + EB_DY[k];
+            const qk = ebKey(qx, qy);
+            if (pads.has(qk) || trace.has(qk)) continue;
+            if ((k & 1) && diag.has(diagOther(ex, ey, qx, qy))) continue;
+            nb.push(qx, qy);
+          }
+        }
+        endCache.set(ekey, nb);
       }
-      if (ec === null) return;
+      if (nb === null) return;
 
       // bounding-box growth (corner points of the trace are enough: segments are straight between them)
       let minX = bb.minX, maxX = bb.maxX, minY = bb.minY, maxY = bb.maxY;
@@ -835,59 +846,28 @@ function ebLayoutTree(comp, root, S) {
       corners.forEach(consider);
       consider(n);
       const growth = (maxX - minX + maxY - minY) - (bb.maxX - bb.minX + bb.maxY - bb.minY);
-
-      // exact lower bound of the score (look-ahead penalties are >= 0, continuation bonus <= 1): skip the
-      // expensive look-ahead when this candidate cannot beat the best one found so far
-      if (best) {
-        const outwardMax = S.outward * (Math.max(Math.abs(ex), Math.abs(ey)) - Math.max(Math.abs(P.x), Math.abs(P.y)));
-        const lb = len - gain + 0.7 * bends + S.compact * growth - 1.0 - outwardMax + collisions * 400;
-        if (lb >= best.score - 1e-9) return;
-      }
-
-      // committed-state look-ahead data of this end point (computed once, only for candidates that pass the bound)
-      if (ec.nb === null) {
-        const nb = [];
-          for (let k = 0; k < 8; k++) {
-            const qx = ex + EB_DX[k], qy = ey + EB_DY[k];
-            const qk = ebKey(qx, qy);
-            if (pads.has(qk) || trace.has(qk)) continue;
-            if ((k & 1) && diag.has(diagOther(ex, ey, qx, qy))) continue;
-            nb.push(qx, qy);
+      let score = len - gain + 0.7 * bends + S.compact * growth;
+      if (better(collisions, score)) {
+        // exit look-ahead: free directions at the new pad for its own children (the candidate's own points are taken)
+        if (kids > 0) {
+          let freeDirs = 0;
+          for (let q = 0; q < nb.length; q += 2) {
+            const qx = nb[q], qy = nb[q + 1];
+            let onPath = false;
+            for (let i = 0; i < n; i++) if (xs[i] === qx && ys[i] === qy) { onPath = true; break; }
+            if (!onPath) freeDirs++;
           }
-          let room = 0;
-          if (want > 0) {
-            const R = roomRadius;
-            for (let dx = -R; dx <= R; dx++) {
-              for (let dy = -R; dy <= R; dy++) {
-                if (dx === 0 && dy === 0) continue;
-                const qk = ebKey(ex + dx, ey + dy);
-                if (!pads.has(qk) && !trace.has(qk)) room++;
-              }
-            }
-          }
-          ec.nb = nb;
-          ec.room = room;
+          // a child also needs a free landing point two steps away, so the usable exits are the smaller count
+          let land = landEnd.get(ekey);
+          if (land === undefined) { land = landingPointsAt(ex, ey); landEnd.set(ekey, land); }
+          score += 60 * Math.max(0, kids - Math.min(freeDirs, land));
+        }
+        if (better(collisions, score)) best = { score, xs: xs.slice(), ys: ys.slice(), finalDir, bends, collisions };
       }
-      // look-ahead: free directions at the new pad for its own children (minus the candidate's own points), and
-      // free room for its sub-tree (over a radius that grows with the size of the sub-tree)
-      let freeDirs = 0;
-      for (let q = 0; q < ec.nb.length; q += 2) {
-        const qx = ec.nb[q], qy = ec.nb[q + 1];
-        let onPath = false;
-        for (let i = 0; i < n; i++) if (xs[i] === qx && ys[i] === qy) { onPath = true; break; }
-        if (!onPath) freeDirs++;
-      }
-      let roomPen = 0;
-      if (want > 0) roomPen = S.roomWeight * Math.max(0, roomWant - ec.room);
-      // radial growth (metro map): reward moving away from the root of the tree
-      const outward = S.outward * (Math.max(Math.abs(ex), Math.abs(ey)) - Math.max(Math.abs(P.x), Math.abs(P.y)));
-      const lookPen = Math.max(0, kids - freeDirs) * 60;
-      const cont = (inDir[u] !== undefined && d1 === inDir[u]) ? 1.0 : 0;
-      const score = len - gain + 0.7 * bends + S.compact * growth + lookPen + roomPen - cont - outward + collisions * 400;
-
-      if (!best || score < best.score - 1e-9) {
-        best = { score, xs: xs.slice(), ys: ys.slice(), finalDir, bends, collisions };
-      }
+    }
+    // fewer conflicts first (only possible in forced mode), then the lower cost
+    function better(c, score) {
+      return !best || c < best.collisions || (c === best.collisions && score < best.score - 1e-9);
     }
 
     // pads with waiting children next to point (x, y); returns false if taking the point would starve one of them
@@ -934,10 +914,10 @@ function ebLayoutTree(comp, root, S) {
       len -= (k & 1) ? Math.SQRT2 : 1;
       collisions -= f;
     }
-    // Branch and bound: when every further step adds a non-negative cost (bus bonus <= 1, no radial reward), a
-    // partial trace whose lower bound already reaches the best score cannot be extended into a better candidate,
-    // so the walk stops there (exact: the same best candidate is found, only faster).
-    const canPrune = S.bus <= 1 && S.outward === 0;
+    // Branch and bound: every further step adds at least length 1 - bus >= 0 and the other terms never decrease,
+    // so a partial trace whose cost already reaches the best one cannot be extended into a better candidate and the
+    // walk stops there (exact: the same best candidate is found, only faster).
+    const canPrune = S.bus <= 1;
     function partialBound() {
       const n = xs.length - 1;
       let minX = bb.minX, maxX = bb.maxX, minY = bb.minY, maxY = bb.maxY;
@@ -949,7 +929,7 @@ function ebLayoutTree(comp, root, S) {
         if (ys[i] > maxY) maxY = ys[i];
       }
       const growth = (maxX - minX + maxY - minY) - (bb.maxX - bb.minX + bb.maxY - bb.minY);
-      return len - gain + 0.7 * corners.length + S.compact * growth - 1.0 + collisions * 400;
+      return len - gain + 0.7 * corners.length + S.compact * growth;
     }
     // walk with bookkeeping of collision counts so steps can be undone
     function walk(k, forcedMode, maxLen, onEach) {
@@ -958,7 +938,7 @@ function ebLayoutTree(comp, root, S) {
         const before = collisions;
         if (!stepTo(k, forcedMode)) break;
         hist.push(collisions - before);
-        if (canPrune && best && partialBound() >= best.score - 1e-9) break;
+        if (canPrune && best && collisions >= best.collisions && partialBound() >= best.score - 1e-9) break;
         onEach(i);
       }
       for (let i = hist.length - 1; i >= 0; i--) unstep(k, hist[i], forcedMode);
@@ -970,18 +950,18 @@ function ebLayoutTree(comp, root, S) {
       len = 0; collisions = 0; gain = 0;
       for (let d1 = 0; d1 < 8; d1++) {
         walk(d1, forcedMode, L, () => {
-          if (((d1 & 1) === 0) === wantEven) evaluate(d1, d1, 0);
+          if (((d1 & 1) === 0) === wantEven) evaluate(d1, 0);
           for (const s of [1, -1]) {
             const d2 = (d1 + s + 8) % 8;
             corners.push(xs.length - 1);
             walk(d2, forcedMode, L, c => {
-              if (((d2 & 1) === 0) === wantEven) evaluate(d2, d1, 1);
+              if (((d2 & 1) === 0) === wantEven) evaluate(d2, 1);
               // two-bend shapes: the last segment has the parity of d1
               if (jog && c <= EB_JOG_MAX && ((d1 & 1) === 0) === wantEven) {
                 corners.push(xs.length - 1);
-                walk(d1, forcedMode, L, () => evaluate(d1, d1, 2));            // dogleg: back to d1
+                walk(d1, forcedMode, L, () => evaluate(d1, 2));            // dogleg: back to d1
                 const d3 = (d2 + s + 8) % 8;
-                walk(d3, forcedMode, L, () => evaluate(d3, d1, 2));            // chamfered 90-deg corner
+                walk(d3, forcedMode, L, () => evaluate(d3, 2));            // chamfered 90-deg corner
                 corners.pop();
               }
             });
@@ -1294,18 +1274,16 @@ function ebLayoutTree(comp, root, S) {
   return result;
 }
 
-// A tree whose routing needed conflicting traces is laid out again: with the user's settings plus a radial
-// (outward-growing, less compact) variant, from alternative roots (if the user did not fix the root: the
+// A tree whose routing needed conflicting traces is laid out again: with the user's settings plus a less compact
+// variant (half the compactness weight), from alternative roots (if the user did not fix the root: the
 // highest-degree vertex, the first vertex, neighbours of the centre), then with further setting variants.
 // The result with the fewest conflicts (then the smallest board at the chosen aspect ratio) is kept; retries stop
 // after a time budget.
 function ebLayoutTreeBest(comp, root, S, rootFixed) {
   const other = S.order === "bfs" ? "dfs" : "bfs";
-  const radial = Object.assign({}, S, { compact: S.compact * 0.5, outward: 0.6 });
-  const roomy = Object.assign({}, S, { compact: S.compact * 0.5, roomPerVertex: 3, roomMaxRadius: 4 });
+  const loose = Object.assign({}, S, { compact: S.compact * 0.5 });
   const later = [
     Object.assign({}, S, { bus: 0 }),
-    Object.assign({}, S, { compact: S.compact * 0.5 }),
     Object.assign({}, S, { compact: 0.25 }),
     Object.assign({}, S, { maxSeg: Math.min(12, S.maxSeg + 3), compact: S.compact * 0.5 }),
     Object.assign({}, S, { order: other })
@@ -1316,8 +1294,7 @@ function ebLayoutTreeBest(comp, root, S, rootFixed) {
     [byDegree[0], comp[0]].concat(ebGraph[root]).forEach(r => { if (!roots.includes(r)) roots.push(r); });
   }
   const attempts = [];
-  roots.forEach(r => { attempts.push([r, S], [r, radial]); });
-  roots.forEach(r => { attempts.push([r, roomy]); });
+  roots.forEach(r => { attempts.push([r, S], [r, loose]); });
   later.forEach(v => roots.forEach(r => attempts.push([r, v])));
 
   // Attempts run without the squeeze pass. Until one is conflict-free, the time budget is BUDGET_MS; after that
@@ -2333,10 +2310,6 @@ function lfSettings() {
     squeeze: $("squeezeBoard").checked,
     squeezeMs: lfNum("squeezeMs", 150, 0, 10000),
     chooseMs: 0,
-    outward: 0,
-    roomPerVertex: 1.5,
-    roomWeight: 1.0,
-    roomMaxRadius: 2,
     showGrid: $("showGrid").checked,
     theme: LF_THEMES[$("boardTheme").value] ? $("boardTheme").value : "blue",
     wantedRoot: ""
