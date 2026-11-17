@@ -1,0 +1,5 @@
+The following gives the best drawings:
+1. For under 1000 vertices, large and small trees each hold half the vertices.
+2. For more than that, small trees are fixed to be less than 4 vertices. Large trees should have minimum size 9 and maximum size 30-55 for a nice drawing.
+3. Boards should be drawn in groups of 1000 vertices for nice drawings.
+4. The forest should be divided equally in terms of number of vertices and not trees so that boards are of near equal size.
