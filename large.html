@@ -285,6 +285,15 @@
     box-shadow: 3px 3px 0 rgba(28, 34, 48, 0.18); cursor: crosshair;
   }
   #miniWrap.hidden { display: none; }
+  /* individual view: the bar sits in the strip above the board window (never over a board) and replaces the hints */
+  .toolbar2 { position: relative; }
+  #soloBar { display: none; align-items: center; gap: 10px; font: 600 12px var(--mono); color: var(--ink);
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%); }
+  #soloBar.on { display: inline-flex; }
+  #soloBar.on + #viewHint { visibility: hidden; }
+  #soloBackBtn { padding-top: 3px; padding-bottom: 3px; }
+  #soloBar .k { font-weight: 500; color: var(--muted); }
+  #soloBackBtn svg { width: 14px; height: 14px; }
   #miniCanvas { display: block; width: 220px; height: 150px; background: #efe9dc; border: 1px solid var(--rule); }
   #miniWrap .cap { font: 600 10.5px var(--mono); color: var(--ink2); margin: 0 2px 4px; display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: default; letter-spacing: 0.6px; }
   #miniWrap .cap .grow { flex: 1; }
@@ -484,7 +493,12 @@
         </div>
       </div>
       <div class="toolbar2">
-        <span>Drag to move · scroll wheel / two fingers to scroll · Ctrl + scroll or pinch to zoom · double-click to zoom in · hover a pad to trace its connections · click the overview map to jump · drag the bar below to resize</span>
+        <div id="soloBar" role="region" aria-label="Individual board view">
+          <button id="soloBackBtn" class="btn sm" title="Back to all boards (Esc)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>All boards</button>
+          <span id="soloTitle"></span><span class="k">individual view</span>
+        </div>
+        <span id="viewHint">Drag to move · scroll wheel / two fingers to scroll · Ctrl + scroll or pinch to zoom · double-click to zoom in · hover a pad to trace its connections · click the overview map to jump · drag the bar below to resize</span>
       </div>
       <div id="boardWindow">
         <canvas id="boardCanvas"></canvas>
@@ -2147,9 +2161,11 @@ function lfGenerate(o) {
   let en = 0, v = 0, trees = 0;
   const kids = new Uint16Array(Math.max(lmax, 3) + 1);
   while (v < N) {
-    const small = rng() < qSmall;
+    const rest = N - v;
+    let small = rng() < qSmall;
+    if (!small && rest < lmin) small = true;   // a large tree of at least lmin vertices no longer fits: fill up with small trees
     let size = small ? 1 + Math.floor(rng() * 3) : lmin + Math.floor(rng() * (lmax - lmin + 1));
-    size = Math.min(size, N - v);
+    size = Math.min(size, rest);
     kids.fill(0, 0, size);
     for (let j = 1; j < size; j++) {
       let p = -1;
@@ -2299,7 +2315,9 @@ const LF = {
   userMoved: false, gridDirty: false, drawQueued: false,
   hover: null, focus: null, focusPending: -1,
   agg: null, t0: 0, reportTimer: null,
-  pathCache: new Map(), thumbs: 0
+  pathCache: new Map(), thumbs: 0,
+  source: null,            // where the current forest came from: {kind: "gen", key} | {kind: "list", text} | {kind: "file"}
+  solo: -1, soloSaved: null, soloBtns: []   // individual view of one board, the view to go back to, open-buttons on screen
 };
 const LF_GENDER_RING = { M: "#1f7fd1", F: "#e0186a" };
 const LF_THEMES = {
@@ -2627,7 +2645,8 @@ function lfRecomputeGrid(anchor) {
   const k = LF.boards.length;
   if (!k) return;
   const cv = $("boardCanvas");
-  let keep = null;
+  let keep = null, soloR = null;
+  if (LF.solo >= 0 && LF.colX) { soloR = lfBoardRect(LF.solo); anchor = false; }
   if (anchor && LF.colX) {
     const W = cv.clientWidth, H = cv.clientHeight, s = LF.view.s;
     const wx = LF.view.x + W / 2 / s, wy = LF.view.y + H / 2 / s;
@@ -2649,6 +2668,11 @@ function lfRecomputeGrid(anchor) {
   LF.colW = colW; LF.rowH = rowH; LF.colX = colX; LF.rowY = rowY;
   LF.totalW = colX[cols]; LF.totalH = rowY[rows];
   LF.gridDirty = false;
+  if (soloR) {
+    const R = lfBoardRect(LF.solo);
+    LF.view.x += R.x - soloR.x;
+    LF.view.y += R.y - soloR.y;
+  }
   if (keep) {
     const W = cv.clientWidth, H = cv.clientHeight, s = LF.view.s;
     const wx = colX[keep.c] + keep.fx * (colW[keep.c] + G), wy = rowY[keep.r] + keep.fy * (rowH[keep.r] + G);
@@ -2664,19 +2688,29 @@ function lfBoardRect(i) {
 }
 
 // ---------------------------------------------------------------- view
+// the part of the world the view may show: every board, or the one board of the individual view
+function lfViewBounds() {
+  if (LF.solo >= 0 && LF.colX) {
+    const R = lfBoardRect(LF.solo), G = LF.gap;
+    return { x: R.x - G, y: R.y - G, w: R.w + 2 * G, h: R.h + 2 * G };
+  }
+  return { x: 0, y: 0, w: LF.totalW, h: LF.totalH };
+}
+
 function lfMinScale() {
   const cv = $("boardCanvas");
   if (!LF.totalW) return 0.05;
-  return Math.min(0.5, 0.5 * Math.min(cv.clientWidth / LF.totalW, cv.clientHeight / LF.totalH));
+  const V = lfViewBounds();
+  return Math.min(0.5, 0.5 * Math.min(cv.clientWidth / V.w, cv.clientHeight / V.h));
 }
 const LF_MAX_SCALE = 6;
 
 function lfClampView() {
   const cv = $("boardCanvas"), s = LF.view.s;
   const vw = cv.clientWidth / s, vh = cv.clientHeight / s;
-  const W = Math.max(LF.totalW, 1), H = Math.max(LF.totalH, 1);
-  LF.view.x = Math.min(W - vw * 0.25, Math.max(-vw * 0.75, LF.view.x));
-  LF.view.y = Math.min(H - vh * 0.25, Math.max(-vh * 0.75, LF.view.y));
+  const V = lfViewBounds(), W = Math.max(V.w, 1), H = Math.max(V.h, 1);
+  LF.view.x = V.x + Math.min(W - vw * 0.25, Math.max(-vw * 0.75, LF.view.x - V.x));
+  LF.view.y = V.y + Math.min(H - vh * 0.25, Math.max(-vh * 0.75, LF.view.y - V.y));
 }
 
 function lfSetZoom(ns, ax, ay) {
@@ -2718,6 +2752,7 @@ function lfFitBoard(i) {
 
 function lfFitAll() {
   if (!LF.boards.length) return;
+  if (LF.solo >= 0) { lfSoloExit(false); }
   if (LF.gridDirty) lfRecomputeGrid(false);
   const cv = $("boardCanvas");
   const s = Math.min(cv.clientWidth / LF.totalW, cv.clientHeight / LF.totalH);
@@ -2725,6 +2760,7 @@ function lfFitAll() {
 }
 
 function lfBoardAtView() {
+  if (LF.solo >= 0) return LF.solo;
   const cv = $("boardCanvas"), s = LF.view.s;
   const wx = LF.view.x + cv.clientWidth / 2 / s, wy = LF.view.y + cv.clientHeight / 2 / s;
   const c = Math.min(LF.cols - 1, lfIndexAt(LF.colX, LF.cols, wx)), r = Math.min(LF.rows - 1, lfIndexAt(LF.rowY, LF.rows, wy));
@@ -2733,6 +2769,7 @@ function lfBoardAtView() {
 
 function lfFocusVertex(g) {
   const b = LF.boardOf[g], B = LF.boards[b];
+  if (LF.solo >= 0 && LF.solo !== b) lfSoloEnter(b, false);
   LF.focus = { b, l: LF.localOf[g] };
   if (LF.gridDirty) lfRecomputeGrid(false);
   if (B.state !== 2) {
@@ -3002,14 +3039,20 @@ function lfDrawScene(ctx, W, H, s, vx, vy, dpr, exporting) {
   const thumbBudget = exporting ? Infinity : performance.now() + 30;
   let thumbsLeft = false;
   const fsLabel = Math.min(15, G * s * 0.3);
+  if (!exporting) LF.soloBtns = [];
 
   for (let r = r0; r <= r1; r++) {
     for (let c = c0; c <= c1; c++) {
       const i = r * LF.cols + c;
       if (i >= LF.boards.length) continue;
+      if (!exporting && LF.solo >= 0 && i !== LF.solo) continue;
       const B = LF.boards[i], R = lfBoardRect(i);
       const sx = (R.x - vx) * s, sy = (R.y - vy) * s, sw = R.w * s, sh = R.h * s;
       if (sx > W || sy > H || sx + sw < -G * s || sy + sh < -G * s) continue;
+      if (!exporting && LF.solo < 0 && B.state === 2 && sw >= 44 && sh >= 30) {
+        const z = sw >= 120 && sh >= 80 ? 20 : 15, pad0 = Math.max(2, 0.5 * p * s);
+        LF.soloBtns.push({ i, x: sx + sw + pad0 - z - 3, y: sy + sh + pad0 - z - 3, z });
+      }
 
       // frame (the border that separates the boards)
       const pad = Math.max(2, 0.5 * p * s), lw = Math.min(4, Math.max(1, 0.2 * p * s));
@@ -3084,7 +3127,83 @@ function lfDrawScene(ctx, W, H, s, vx, vy, dpr, exporting) {
       lfDrawBoardContent(ctx, B, sx, sy, ps, dpr, cull, hover);
     }
   }
+  if (!exporting) lfDrawSoloBtns(ctx, dpr);
   return thumbsLeft;
+}
+
+// the small "view this board on its own" buttons (bottom right corner of every finished board)
+function lfDrawSoloBtns(ctx, dpr) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  for (const q of LF.soloBtns) {
+    const hot = LF.soloHot === q.i;
+    ctx.fillStyle = hot ? "#b45f1c" : "rgba(251, 249, 244, 0.92)";
+    ctx.strokeStyle = hot ? "#8f4812" : "#3a4354";
+    ctx.lineWidth = 1;
+    lfRoundRect(ctx, q.x + 0.5, q.y + 0.5, q.z - 1, q.z - 1, 3);
+    ctx.fill();
+    ctx.stroke();
+    // icon: two corner arrows (expand)
+    const a = q.z * 0.26, x0 = q.x + a, y0 = q.y + a, x1 = q.x + q.z - a, y1 = q.y + q.z - a, t = q.z * 0.22;
+    ctx.strokeStyle = hot ? "#fff" : "#1c2230";
+    ctx.lineWidth = q.z >= 18 ? 1.6 : 1.3;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(x0, y0 + t); ctx.lineTo(x0, y0); ctx.lineTo(x0 + t, y0);
+    ctx.moveTo(x0, y0); ctx.lineTo(x0 + t * 1.3, y0 + t * 1.3);
+    ctx.moveTo(x1, y1 - t); ctx.lineTo(x1, y1); ctx.lineTo(x1 - t, y1);
+    ctx.moveTo(x1, y1); ctx.lineTo(x1 - t * 1.3, y1 - t * 1.3);
+    ctx.stroke();
+  }
+}
+
+function lfSoloBtnAt(clientX, clientY) {
+  const rc = $("boardCanvas").getBoundingClientRect(), x = clientX - rc.left, y = clientY - rc.top;
+  for (let k = LF.soloBtns.length - 1; k >= 0; k--) {
+    const q = LF.soloBtns[k];
+    if (x >= q.x - 2 && x <= q.x + q.z + 2 && y >= q.y - 2 && y <= q.y + q.z + 2) return q.i;
+  }
+  return -1;
+}
+
+// show board i on its own; save = remember the current view to go back to it
+function lfSoloEnter(i, save) {
+  if (i < 0 || i >= LF.boards.length) return;
+  if (save !== false && LF.solo < 0) LF.soloSaved = { s: LF.view.s, x: LF.view.x, y: LF.view.y };
+  LF.solo = i;
+  LF.soloHot = -1;
+  lfClearHover();
+  $("soloBar").classList.add("on");
+  $("soloTitle").textContent = `Board ${i + 1} of ${lfFmt(LF.boards.length)}`;
+  $("saveBoardNo").value = i + 1;
+  $("gotoBoard").value = i + 1;
+  lfFitBoard(i);
+  LF.userMoved = true;
+  lfPump();
+}
+
+// back to all boards; restore = return to the view from before the individual view
+function lfSoloExit(restore) {
+  if (LF.solo < 0) return;
+  const i = LF.solo;
+  LF.solo = -1;
+  $("soloBar").classList.remove("on");
+  lfClearHover();
+  if (restore !== false && LF.soloSaved) {
+    LF.view.s = Math.min(LF_MAX_SCALE, Math.max(lfMinScale(), LF.soloSaved.s));
+    LF.view.x = LF.soloSaved.x; LF.view.y = LF.soloSaved.y;
+    lfClampView(); lfZoomLabel();
+  } else if (restore !== false) {
+    lfFitBoard(i);
+  }
+  LF.soloSaved = null;
+  lfRequestDraw();
+  lfPump();
+}
+
+function lfSoloReset() {
+  LF.solo = -1; LF.soloSaved = null; LF.soloBtns = []; LF.soloHot = -1;
+  const bar = $("soloBar");
+  if (bar) bar.classList.remove("on");
 }
 
 function lfDrawMini() {
@@ -3106,6 +3225,11 @@ function lfDrawMini() {
     ctx.fillRect(ox + R.x * m, oy + R.y * m, Math.max(0.6, R.w * m), Math.max(0.6, R.h * m));
   }
   ctx.globalAlpha = 1;
+  if (LF.solo >= 0) {
+    const R = lfBoardRect(LF.solo);
+    ctx.strokeStyle = "#d99a00"; ctx.lineWidth = 2;
+    ctx.strokeRect(ox + R.x * m - 2, oy + R.y * m - 2, Math.max(0.6, R.w * m) + 4, Math.max(0.6, R.h * m) + 4);
+  }
   const cv = $("boardCanvas"), s = LF.view.s;
   const vx = ox + LF.view.x * m, vy = oy + LF.view.y * m, vw = cv.clientWidth / s * m, vh = cv.clientHeight / s * m;
   ctx.strokeStyle = "#1c2230"; ctx.lineWidth = 1.5;
@@ -3124,6 +3248,7 @@ function lfPick(clientX, clientY) {
   if (c >= LF.cols || r >= LF.rows) return null;
   const i = r * LF.cols + c;
   if (i >= LF.boards.length) return null;
+  if (LF.solo >= 0 && i !== LF.solo) return null;
   const B = LF.boards[i], R = lfBoardRect(i);
   if (wx < R.x || wx > R.x + R.w || wy < R.y || wy > R.y + R.h) return { b: i, l: -1 };
   if (B.state !== 2 || LF.S.pitch * s < 1.6) return { b: i, l: -1 };
@@ -3199,6 +3324,7 @@ function lfStart(message) {
   LF.pathCache.clear();
   LF.hover = null; LF.focus = null; LF.focusPending = -1;
   LF.userMoved = false;
+  lfSoloReset();
   if (!LF.G || !LF.G.N) {
     LF.boards = []; LF.colX = null; LF.agg = null; LF.totalW = LF.totalH = 0;
     $("progBar").style.width = "0%"; $("progText").textContent = "0 / 0 boards";
@@ -3246,7 +3372,7 @@ function lfEnsureNameMap() {
   LF.G.nameMap = m;
 }
 
-function lfLoad(parsed, source) {
+function lfLoad(parsed, source, src) {
   if (parsed.errors.length) {
     const shown = parsed.errors.slice(0, 12).map(e => " • " + e).join("\n");
     const total = parsed.errors.length + (parsed.extra || 0);
@@ -3258,6 +3384,7 @@ function lfLoad(parsed, source) {
   const G = lfBuildGraph(parsed.names, parsed.male, parsed.eu, parsed.ev);
   if (parsed.nameMap) G.nameMap = parsed.nameMap;
   LF.G = G;
+  LF.source = src || null;
   let males = 0;
   for (let i = 0; i < G.N; i++) males += G.male[i];
   lfStart(`Forest loaded from ${source}: ${lfFmt(G.N)} vertices, ${lfFmt(G.E)} edges, ${lfFmt(G.nComp)} tree${G.nComp === 1 ? "" : "s"} ` +
@@ -3269,25 +3396,46 @@ function lfLater(text, fn) {
   setTimeout(fn, 30);
 }
 
-function lfFromText(text, source) {
+function lfFromText(text, source, src) {
   lfLater(`Reading ${source}…`, () => {
     const t0 = performance.now();
     const parsed = lfParseList(text);
     if (!parsed.errors.length) {
       parsed.nameMap = null;
     }
-    lfLoad(parsed, source);
+    lfLoad(parsed, source, src || { kind: "list", text });
     console.log(`parsed ${source} in ${Math.round(performance.now() - t0)} ms`);
   });
 }
 
-function lfGenerateNow() {
-  const o = {
+function lfGenOptions() {
+  return {
     N: lfNum("genN", 100000, 1, 1000000), maleShare: lfNum("genMale", 0.5, 0, 1),
     lmin: lfNum("genLmin", 9, 1, 100000), lmax: lfNum("genLmax", 60, 1, 100000),
     smallShare: lfNum("genSmall", 0.25, 0, 1), maxKids: lfNum("genKids", 4, 1, 7), seed: lfNum("genSeed", 7, -1e9, 1e9)
   };
-  lfLater(`Generating a random forest of ${lfFmt(o.N)} vertices…`, () => lfLoad(lfGenerate(o), "the random generator"));
+}
+
+function lfGenerateNow() {
+  const o = lfGenOptions();
+  lfLater(`Generating a random forest of ${lfFmt(o.N)} vertices…`, () => lfLoad(lfGenerate(o), "the random generator", { kind: "gen", key: JSON.stringify(o) }));
+}
+
+// "Run layout" uses every section: if the forest described by the open input section (the generator settings, or the
+// text in the adjacency-list box) differs from the forest on screen, that forest is made first; the division into
+// boards and the layout settings are always read again by lfStart.
+function lfRunLayout() {
+  const on = $("modeSeg").querySelector("button.on");
+  const mode = on ? on.dataset.mode : "list";
+  if (mode === "gen") {
+    const key = JSON.stringify(lfGenOptions());
+    if (!LF.G || !LF.source || LF.source.kind !== "gen" || LF.source.key !== key) { lfGenerateNow(); return; }
+  } else {
+    const text = $("listInput").value;
+    if (text.trim() && (!LF.G || !LF.source || LF.source.kind !== "list" || LF.source.text !== text)) { lfFromText(text, "adjacency list"); return; }
+  }
+  if (!LF.G) { lfSetStatus("Nothing to lay out: load a forest (adjacency list or file) or generate a random one.", "bad"); return; }
+  lfStart("Layout recomputed with the current settings.");
 }
 
 function lfRandomizeGenders() {
@@ -3376,15 +3524,15 @@ function lfInit() {
       if (text.length <= 200000) $("listInput").value = text;
       else $("listInput").value = "";
       $("importListFile").value = "";
-      lfFromText(text, `file ${f.name} (${(f.size / 1048576).toFixed(1)} MB)`);
+      lfFromText(text, `file ${f.name} (${(f.size / 1048576).toFixed(1)} MB)`, text.length <= 200000 ? { kind: "list", text } : { kind: "file" });
     };
     lfSetStatus(`Reading file ${f.name}…`, "busy");
     rd.readAsText(f);
   };
   $("generateBtn").onclick = lfGenerateNow;
   $("exportListBtn").onclick = lfExportList;
-  $("clearBtn").onclick = () => { LF.G = null; $("listInput").value = ""; $("rootNode").value = ""; lfStart("Graph cleared."); };
-  $("runLayoutBtn").onclick = () => { if (LF.G) lfStart("Layout recomputed with the current settings."); };
+  $("clearBtn").onclick = () => { LF.G = null; LF.source = null; $("listInput").value = ""; $("rootNode").value = ""; lfStart("Graph cleared."); };
+  $("runLayoutBtn").onclick = lfRunLayout;
   $("randomizeGendersBtn").onclick = lfRandomizeGenders;
   $("saveBoardBtn").onclick = lfSaveBoard;
 
@@ -3406,6 +3554,7 @@ function lfInit() {
     const n = Math.round(lfNum("gotoBoard", 1, 1, LF.boards.length));
     $("gotoBoard").value = n;
     LF.userMoved = true;
+    if (LF.solo >= 0) { lfSoloEnter(n - 1, false); return; }
     lfFitBoard(n - 1);
     lfPump();
   };
@@ -3428,7 +3577,9 @@ function lfInit() {
   const ptrs = new Map();
   let drag = null, pinch = null, moved = 0;
   const local = e => { const rc = cv.getBoundingClientRect(); return { x: e.clientX - rc.left, y: e.clientY - rc.top }; };
+  let btnDown = -1;
   cv.addEventListener("pointerdown", e => {
+    btnDown = ptrs.size === 0 ? lfSoloBtnAt(e.clientX, e.clientY) : -1;
     cv.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, local(e));
     if (ptrs.size === 1) { drag = { x: e.clientX, y: e.clientY, vx: LF.view.x, vy: LF.view.y }; moved = 0; win.classList.add("dragging"); }
@@ -3460,6 +3611,10 @@ function lfInit() {
       }
       return;
     }
+    const hot = lfSoloBtnAt(e.clientX, e.clientY);
+    if (hot !== (LF.soloHot === undefined ? -1 : LF.soloHot)) { LF.soloHot = hot; lfRequestDraw(); }
+    cv.style.cursor = hot >= 0 ? "pointer" : "";
+    if (hot >= 0) { lfClearHover(); return; }
     lfHover(e);
   });
   const up = e => {
@@ -3468,6 +3623,8 @@ function lfInit() {
     if (ptrs.size < 2) pinch = null;
     if (ptrs.size === 0) {
       if (drag && moved > 2) lfPump();
+      else if (btnDown >= 0 && lfSoloBtnAt(e.clientX, e.clientY) === btnDown) lfSoloEnter(btnDown, true);
+      btnDown = -1;
       drag = null;
       win.classList.remove("dragging");
     }
@@ -3498,7 +3655,18 @@ function lfInit() {
   cv.addEventListener("gesturestart", e => { e.preventDefault(); g0 = LF.view.s; });
   cv.addEventListener("gesturechange", e => { e.preventDefault(); const a = local(e); LF.userMoved = true; lfSetZoom(g0 * e.scale, a.x, a.y); });
   cv.addEventListener("gestureend", e => e.preventDefault());
-  cv.addEventListener("dblclick", e => { const a = local(e); LF.userMoved = true; lfSetZoom(LF.view.s * 2, a.x, a.y); });
+  cv.addEventListener("dblclick", e => {
+    if (lfSoloBtnAt(e.clientX, e.clientY) >= 0) return;
+    const a = local(e); LF.userMoved = true; lfSetZoom(LF.view.s * 2, a.x, a.y);
+  });
+  // individual view: back to all boards (button or Escape)
+  $("soloBackBtn").onclick = () => lfSoloExit(true);
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape" || LF.solo < 0) return;
+    const t = e.target && e.target.tagName;
+    if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
+    lfSoloExit(true);
+  });
 
   // overview map: click or drag to jump
   const mc = $("miniCanvas");
@@ -3508,6 +3676,7 @@ function lfInit() {
     const rc = mc.getBoundingClientRect();
     const wx = (e.clientX - rc.left - LF.mini.ox) / LF.mini.m, wy = (e.clientY - rc.top - LF.mini.oy) / LF.mini.m;
     LF.userMoved = true;
+    if (LF.solo >= 0) lfSoloExit(false);
     lfCenterOn(wx, wy, LF.view.s);
   };
   mc.addEventListener("pointerdown", e => { e.stopPropagation(); miniDrag = true; mc.setPointerCapture(e.pointerId); miniJump(e); });
